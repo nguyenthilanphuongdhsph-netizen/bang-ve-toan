@@ -69,6 +69,8 @@ body.fs.notools .tools,body.fs.notools .opts{display:none!important}
 .dlg .opt input[type=radio]{accent-color:var(--accent);margin-top:4px}
 .dlg input[type=number]{width:4.5em;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 6px}
 .dlg-b{display:flex;gap:8px}
+.szl{color:var(--muted);font-size:13px}
+.zb{font:600 18px var(--font-ui)!important;min-width:34px!important;padding:3px!important}
 .num{width:4.2em;font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:5px 7px}
 .gprev{font:20px "Patrick Hand","Be Vietnam Pro",sans-serif;color:var(--ink);padding:0 6px;white-space:nowrap}
 .gprev.bad{color:var(--danger);font:600 12px var(--font-ui)}
@@ -270,6 +272,8 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
       </label>
       <span id="syms" class="og" data-for="text"></span>
     </div>
+    <div class="og" data-ins="ruler"><span class="szl">Thước thẳng</span><button class="tb sm zb" data-sz="ruler,-1" title="Thước ngắn lại" aria-label="Thước ngắn lại">−</button><button class="tb sm zb" data-sz="ruler,1" title="Thước dài ra" aria-label="Thước dài ra">+</button></div>
+    <div class="og" data-ins="pro"><span class="szl">Đo góc</span><button class="tb sm zb" data-sz="pro,-1" title="Thước đo góc nhỏ lại" aria-label="Thước đo góc nhỏ lại">−</button><button class="tb sm zb" data-sz="pro,1" title="Thước đo góc to ra" aria-label="Thước đo góc to ra">+</button></div>
     <div class="og" data-ins="para">
       <label>Thước parabol
         <select id="selPara">
@@ -279,6 +283,9 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
           <option value="0.25">y = ¼x²</option>
         </select>
       </label>
+      <button class="tb sm zb" data-sz="para,-1" title="Thước parabol ngắn lại" aria-label="Thước parabol ngắn lại">−</button><button class="tb sm zb" data-sz="para,1" title="Thước parabol dài ra" aria-label="Thước parabol dài ra">+</button>
+      <button class="btn" id="bParaFlip" title="Lật thước để vẽ nhánh bên kia">Lật thước</button>
+      <button class="btn" id="bParaTurn" title="Úp thước xuống, dùng khi a &lt; 0">Úp thước</button>
     </div>
     <div class="og" data-for="graph">
       <label>Hàm số
@@ -300,6 +307,7 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
           <option value="45">45° – 45°</option>
         </select>
       </label>
+      <button class="tb sm zb" data-sz="sq,-1" title="Ê ke nhỏ lại" aria-label="Ê ke nhỏ lại">−</button><button class="tb sm zb" data-sz="sq,1" title="Ê ke to ra" aria-label="Ê ke to ra">+</button>
     </div>
     <div class="og" data-ins="comp">
       <label class="chk"><input type="checkbox" id="chkPencil" checked> Hạ bút chì khi quay compa</label>
@@ -370,7 +378,8 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
       </div>
       <div class="dlg" id="pdfDlg" hidden role="dialog" aria-label="Chèn PDF">
         <strong id="pdfTitle">PDF</strong>
-        <label class="opt"><input type="radio" name="pdfm" value="all" checked> <span id="pdfAllLbl">Mỗi trang PDF thành một trang bảng mới</span></label>
+        <label class="opt"><input type="radio" name="pdfm" value="all" checked> <span id="pdfAllLbl">Cả file vào một trang bảng mới</span></label>
+        <label class="opt"><input type="radio" name="pdfm" value="here"> <span id="pdfHereLbl">Nối vào cuối trang đang mở</span></label>
         <label class="opt"><input type="radio" name="pdfm" value="one"> <span>Chỉ chèn trang số <input type="number" id="pdfNum" min="1" value="1"> vào trang đang mở</span></label>
         <div class="dlg-b"><button class="btn primary" id="pdfOk">Chèn</button><button class="btn" id="pdfNo2">Hủy</button></div>
         <div class="dlg-p" id="pdfProg"></div>
@@ -462,7 +471,7 @@ const S={
   line:'segment',shape:'rect',circ:'circle',solid:'box',tsize:30,
   items:[],redo:[],
   ruler:{on:false,x:40,y:200,a:0,cm:10},
-  para:{on:false,x:300,y:300,a:0,k:1},
+  para:{on:false,x:300,y:300,a:0,k:1,f:1},
   sq:{on:false,x:100,y:300,a:0,kind:'3060'},
   pro:{on:false,x:300,y:300,a:0,arm:60},
   comp:{on:false,nx:150,ny:150,px:260,py:150},
@@ -910,7 +919,7 @@ const RULER={
 
 /* ---------- ê ke: right angle at the frame origin, legs along +u and -v ---------- */
 function sqDims(){
-  const A=(S.sq.kind==='45'?8:9)*PXCM,B=S.sq.kind==='45'?A:A*Math.tan(30*DEG);
+  const A=(S.sq.len||(S.sq.kind==='45'?8:9))*PXCM,B=S.sq.kind==='45'?A:A*Math.tan(30*DEG);
   const hyp=Math.hypot(A,B),r=(A+B-hyp)/2;
   return{A:A,B:B,r:r};
 }
@@ -952,7 +961,7 @@ const SQ={
 };
 
 /* ---------- thước đo góc: centre at the frame origin, arc above the baseline ---------- */
-function proR(){return Math.max(110,Math.min(5.5*PXCM,(W-70)/2.2,(H-70)*0.8))}
+function proR(){return S.pro.r||Math.max(110,Math.min(5.5*PXCM,(W-70)/2.2,(H-70)*0.8))}
 const PRO={
   pivot:function(){return[0,0]},
   edges:function(){
@@ -994,44 +1003,52 @@ const PRO={
     chip(g,lab,tip[0],tip[1]-22);
   }
 };
-/* ---------- thước parabol: mép cong y = a·x² (đơn vị = cỡ ô), đỉnh ở gốc khung ---------- */
-const PB=46;
+/* ---------- thước parabol kiểu học sinh: nửa parabol y = a·x², đầu nhỏ là đỉnh, mép thẳng là trục ----------
+   frame: đỉnh at the origin, axis along -v (up), the curved edge on the side of f (+1 right, -1 left after Lật thước) */
 function paraGeom(){
-  const U=axisUnit(),a=S.para.k,A=a/U,xm=Math.min(5*U,U*Math.sqrt(6/a)),pts=[],out=[];
-  for(let i=0;i<=80;i++){
-    const u=-xm+2*xm*i/80,v=-A*u*u,n=unit(2*A*u,1);
-    pts.push([u,v]);out.push([u+n[0]*PB,v+n[1]*PB]);
-  }
-  return{U:U,a:a,A:A,xm:xm,pts:pts,out:out};
+  const U=axisUnit(),a=S.para.k,A=a/U,f=S.para.f||1,xm=Math.min(5*U,U*Math.sqrt(6/a))*(S.para.sc||1),top=-A*xm*xm,curve=[];
+  for(let i=0;i<=60;i++){const u=xm*i/60;curve.push([f*u,-A*u*u])}
+  return{U:U,a:a,A:A,f:f,xm:xm,top:top,curve:curve};
 }
 const PARA={
   pivot:function(){return[0,0]},
-  rot:function(){return[0,PB*0.5]},
-  edges:function(){const I=S.para;return[{poly:paraGeom().pts.map(function(q){return toW(I,q[0],q[1])})}]},
+  rot:function(){const G=paraGeom();return[G.f*G.xm*0.3,G.top*0.84]},
+  edges:function(){
+    const I=S.para,G=paraGeom(),w=function(q){return toW(I,q[0],q[1])};
+    return[{poly:G.curve.map(w)},[w([0,8]),w([0,G.top])]];
+  },
   inside:function(u,v){
-    const G=paraGeom();if(Math.abs(u)>G.xm+8)return false;
-    const r=polyNear([u,v],G.pts);if(!r)return false;
-    return v>=-G.A*u*u&&r.d<=PB;
+    const G=paraGeom(),x=u*G.f;
+    if(v>2||v<G.top-2||x<-4)return false;
+    return x<=Math.sqrt(Math.max(0,-v)/G.A)+4;
   },
   draw:function(g){
-    const I=S.para,G=paraGeom();
+    const I=S.para,G=paraGeom(),f=G.f;
     g.save();g.translate(I.x,I.y);g.rotate(I.a);g.setLineDash([]);
-    g.beginPath();G.pts.forEach(function(q,i){i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1])});
-    for(let i=G.out.length-1;i>=0;i--)g.lineTo(G.out[i][0],G.out[i][1]);
-    g.closePath();g.fillStyle='rgba(196,170,240,.62)';g.fill();
-    g.strokeStyle='rgba(90,50,150,.9)';g.lineWidth=1.2;g.stroke();
-    g.strokeStyle='#4b2a86';g.fillStyle='#4b2a86';g.lineWidth=1;g.font='600 10px '+UI;g.textAlign='center';g.textBaseline='middle';
-    const kmax=Math.floor(G.xm/G.U);
-    for(let k=-kmax;k<=kmax;k++){
-      const u=k*G.U,v=-G.A*u*u,n=unit(2*G.A*u,1);
-      g.beginPath();g.moveTo(u,v);g.lineTo(u+n[0]*(k?9:14),v+n[1]*(k?9:14));g.stroke();
-      if(k)g.fillText(String(k),u+n[0]*19,v+n[1]*19);
+    /* the plate: curved edge from the đỉnh up to the wide end, flat top, straight axis edge back down */
+    g.beginPath();g.moveTo(0,0);G.curve.forEach(function(q){g.lineTo(q[0],q[1])});
+    g.lineTo(f*G.xm,G.top-10);g.lineTo(0,G.top-10);g.closePath();
+    g.fillStyle='rgba(196,170,240,.6)';g.fill();
+    g.strokeStyle='rgba(90,50,150,.95)';g.lineWidth=1.3;g.stroke();
+    g.strokeStyle='#4b2a86';g.fillStyle='#4b2a86';g.lineWidth=1;
+    /* ticks on the axis edge (y) and on the curve (x) */
+    g.font='600 10px '+UI;g.textBaseline='middle';
+    for(let k=1;k*G.U<=-G.top+0.5;k++){
+      const v=-k*G.U;g.beginPath();g.moveTo(0,v);g.lineTo(f*8,v);g.stroke();
+      g.textAlign=f>0?'left':'right';g.fillText(String(k),f*11,v);
     }
-    g.font='600 12px '+UI;
-    const lu=G.xm*0.62,lv=-G.A*lu*lu,ln=unit(2*G.A*lu,1);
-    g.save();g.translate(lu+ln[0]*32,lv+ln[1]*32);g.rotate(Math.atan2(-2*G.A*lu,1));
-    g.fillText('y = '+(G.a===1?'':G.a===0.5?'½':G.a===0.25?'¼':String(G.a))+'x²',0,0);g.restore();
-    handle(g,0,PB*0.5,12);
+    for(let k=1;k*G.U<=G.xm+0.5;k++){
+      const u=k*G.U,v=-G.A*u*u,n=unit(-2*G.A*u,-1);
+      g.beginPath();g.moveTo(f*u,v);g.lineTo(f*(u+n[0]*8),v+n[1]*8);g.stroke();
+    }
+    /* đỉnh mark at the narrow end and the labels that teach where the ruler goes */
+    g.fillStyle='#c2410c';g.beginPath();g.arc(0,0,4,0,TAU);g.fill();
+    g.font='700 11px '+UI;g.textAlign=f>0?'right':'left';g.fillText('Đỉnh',-f*6,4);
+    g.save();g.translate(-f*7,G.top*0.5);g.rotate(-Math.PI/2);g.textAlign='center';g.fillStyle='#4b2a86';
+    g.font='600 11px '+UI;g.fillText('Trục',0,0);g.restore();
+    g.fillStyle='#4b2a86';g.font='600 12px '+UI;g.textAlign='center';
+    g.fillText('y = '+(G.a===1?'':G.a===0.5?'½':G.a===0.25?'¼':String(G.a))+'x²',f*G.xm*0.62,G.top+16);
+    handle(g,f*G.xm*0.3,G.top*0.84,12);
     g.restore();
   }
 };
@@ -1306,7 +1323,8 @@ function openPdf(file){
     pdfDoc=doc;pdfName=file.name.replace(/\.pdf$/i,'');
     $('pdfTitle').textContent=file.name+' · '+doc.numPages+' trang';
     $('pdfNum').max=doc.numPages;$('pdfNum').value=1;
-    $('pdfAllLbl').textContent='Tất cả '+doc.numPages+' trang, mỗi trang PDF thành một trang bảng mới';
+    $('pdfAllLbl').textContent='Cả '+doc.numPages+' trang vào một trang bảng mới tên “'+pdfName+'” (lăn chuột để xem)';
+    $('pdfHereLbl').textContent='Cả '+doc.numPages+' trang nối vào cuối trang đang mở';
     document.querySelector('input[name=pdfm][value='+(doc.numPages>1?'all':'one')+']').checked=true;
     $('pdfProg').textContent='';$('pdfOk').disabled=false;
     $('pdfDlg').hidden=false;note('Chọn cách chèn PDF.');
@@ -1337,23 +1355,29 @@ $('pdfOk').addEventListener('click',function(){
     });
     return;
   }
-  const f=curFolder();let after=curPage(),first=null,i=0;
-  const total=Math.min(N,80),base=pdfName.length>22?pdfName.slice(0,22)+'…':pdfName;
+  /* every PDF page goes into ONE board page, stacked top to bottom, so the page simply scrolls through the file */
+  const total=Math.min(N,150),here=mode==='here',items=[];
+  const rw=Math.min(W*0.94,1400),x0=(W-rw)/2;
+  let y=here?Math.max(12,contentBottom()+30):12,firstY=y,i=0;
   function next(){
     i++;
     if(i>total){
-      saveIdxSoon();$('pdfDlg').hidden=true;
-      note('Đã thêm '+total+' trang từ '+pdfName+(N>total?' (tối đa 80 trang mỗi lần)':'')+'.');
-      openPage(first);return;
+      $('pdfDlg').hidden=true;
+      const msg='Đã chèn '+total+' trang của '+pdfName+(N>total?' (tối đa 150 trang mỗi lần)':'')+'. Lăn chuột để xem từ trên xuống.';
+      if(here){items.forEach(function(it){commit(it,true)});drawImages();setScroll(firstY-12);note(msg);return}
+      const f=curFolder(),p={id:uid('p'),name:pdfName.length>40?pdfName.slice(0,40)+'…':pdfName};
+      f.pages.splice(f.pages.indexOf(curPage())+1,0,p);
+      store.set('p:'+p.id,{items:items,board:'white',grid:1}).then(function(){saveIdxSoon();note(msg);openPage(p.id)});
+      return;
     }
     $('pdfProg').textContent='Đang chèn trang '+i+' / '+total+'…';
     renderPdfPage(i).then(function(r){
       return putImage(r.blob,r.w,r.h).then(function(id){
-        const rc=fitW(r.w,r.h);rc.y=12;const p={id:uid('p'),name:base+' – '+i};
-        f.pages.splice(f.pages.indexOf(after)+1,0,p);after=p;if(!first)first=p.id;
-        return store.set('p:'+p.id,{items:[{img:{id:id,x:round1(rc.x),y:round1(rc.y),w:round1(rc.w),h:round1(rc.h)},nl:0}],board:'white'});
+        const rh=r.h*rw/r.w;
+        items.push({img:{id:id,x:round1(x0),y:round1(y),w:round1(rw),h:round1(rh)},nl:0});
+        y+=rh+24;
       });
-    }).then(next).catch(function(){note('Lỗi khi chèn trang '+i+'.');$('pdfDlg').hidden=true;if(first)openPage(first)});
+    }).then(next).catch(function(){note('Lỗi khi chèn trang '+i+'.');$('pdfDlg').hidden=true});
   }
   flushPage().then(next);
 });
@@ -1674,7 +1698,7 @@ const hintEl=$('hint'),toolsEl=$('tools'),txt=$('txt'),fab=$('fab'),toolBtns={};
 function updHint(){
   const a=[S.tool==='pen'?PM_HINT[S.pm]:S.tool==='eraser'&&S.em===2?'Tẩy cả nét: chạm hoặc quét qua nét nào là xóa trọn nét đó (kể cả hình, chữ).':HINT[S.tool]];
   if(S.ruler.on||S.sq.on||S.pro.on||S.para.on)a.push(INS_HINT.ruler);
-  if(S.para.on)a.push('Thước parabol: đặt bút sát mép cong để vẽ theo parabol; chọn độ mở ở ô y = ax².');
+  if(S.para.on)a.push('Thước parabol: đặt đầu nhỏ (Đỉnh) trùng đỉnh parabol, mép thẳng (Trục) trùng trục đối xứng, kẻ theo mép cong; xong bấm Lật thước để kẻ nhánh còn lại. a < 0 thì bấm Úp thước.');
   if(S.pro.on)a.push(INS_HINT.pro);
   if(S.comp.on)a.push(INS_HINT.comp);
   a.push(typeof penSeen!=='undefined'&&penSeen?'Đang dùng bút: ngón tay chỉ để kéo trang.':'Lăn chuột, vuốt hai ngón hoặc kéo thanh bên phải để kéo trang lên xuống.');
@@ -1817,7 +1841,10 @@ function renderTree(){
             '<button class="ib" data-del="'+p.id+'" title="Xóa trang" aria-label="Xóa trang">'+ic('del')+'</button></div>';
         }
         if(ui.del===p.id){
-          h+='<div class="conf"><span>Xóa “'+esc(p.name)+'”?</span><button class="btn sm danger" data-delok="'+p.id+'">Xóa</button><button class="btn sm" data-delno="1">Hủy</button></div>';
+          const grp=pageGroup(f,p);
+          h+='<div class="conf"><span>Xóa “'+esc(p.name)+'”?</span><button class="btn sm danger" data-delok="'+p.id+'">Xóa trang này</button>'+
+            (grp.length>1?'<button class="btn sm danger" data-delgrp="'+p.id+'">Xóa cả '+grp.length+' trang cùng file</button>':'')+
+            '<button class="btn sm" data-delno="1">Hủy</button></div>';
         }
       });
       h+='<button class="addpg" data-addp="'+f.id+'">+ Trang mới</button>';
@@ -1875,6 +1902,20 @@ function rename(id,val){
   if(r&&val){(r.p||r.f).name=val.slice(0,60);saveIdxSoon()}
   renderTree();
 }
+/* pages named "something – 12" came from one PDF: they form a group */
+function pageGroup(f,p){
+  const m=/^(.*) – \d+$/.exec(p.name);if(!m)return[p];
+  return f.pages.filter(function(q){const k=/^(.*) – \d+$/.exec(q.name);return k&&k[1]===m[1]});
+}
+function removeGroup(id){
+  const r=findAny(id);ui.del=null;if(!r||!r.p){renderTree();return}
+  const grp=pageGroup(r.f,r.p),ids=grp.map(function(q){return q.id}),hadCur=ids.indexOf(IDX.cur)>=0;
+  r.f.pages=r.f.pages.filter(function(q){return ids.indexOf(q.id)<0});
+  ids.forEach(function(pid){store.del('p:'+pid).catch(function(){});delete REDO[pid]});
+  if(!r.f.pages.length)addPage(r.f);
+  saveIdxSoon();
+  if(hadCur){IDX.cur='__';openPage(r.f.pages[0].id)}else renderTree();
+}
 function remove(id){
   const r=findAny(id);ui.del=null;if(!r){renderTree();return}
   let gone=[];
@@ -1899,6 +1940,7 @@ treeEl.addEventListener('click',function(e){
   else if(d.edit){ui.ren=d.edit;ui.del=null;renderTree()}
   else if(d.del){ui.del=d.del;ui.ren=null;renderTree()}
   else if(d.delok)remove(d.delok);
+  else if(d.delgrp)removeGroup(d.delgrp);
   else if(d.delno){ui.del=null;renderTree()}
   else if(d.addp){const f=findAny(d.addp).f;openPage(addPage(f).id)}
 });
@@ -2147,6 +2189,19 @@ function startTool(e,p,edge){
   else{const q=edge?snapEdge(p,edge):(t==='line'||t==='circle'?kpSnap(p):p);gs={k:'drag',p0:q,p1:q,edge:edge}}
   req();
 }
+/* ---------- thước to, thước nhỏ: real lengths change, the cm marks stay true ---------- */
+function resizeIns(key,dir){
+  const I=S[key],pw=insPivotW(key);
+  if(key==='ruler'){I.cm=Math.max(4,Math.min(30,I.cm+2*dir));I.cmSet=true}
+  else if(key==='sq'){const cur=I.len||(I.kind==='45'?8:9);I.len=Math.max(5,Math.min(20,cur+2*dir))}
+  else if(key==='pro'){I.r=Math.max(100,Math.min(440,Math.round(proR()+40*dir)))}
+  else if(key==='para'){I.sc=Math.max(0.6,Math.min(2.2,Math.round(((I.sc||1)+0.2*dir)*10)/10))}
+  insSetAngle(key,I.a,pw);renderOverlay();
+}
+document.querySelectorAll('[data-sz]').forEach(function(b){
+  b.addEventListener('click',function(){const a=b.dataset.sz.split(',');resizeIns(a[0],+a[1])});
+});
+
 /* ---------- toàn màn hình ---------- */
 const fsbar=$('fsbar');
 function fsEl(){return document.fullscreenElement||document.webkitFullscreenElement}
@@ -2440,6 +2495,10 @@ function finish(){
       if(plen(g.pts)>1.5||S.glyph.strokes.length)S.glyph.strokes.push(g.pts);
       if(!S.glyph.strokes.length)S.glyph=null;else glyphTimer=setTimeout(finalizeGlyph,750);
     }
+  }else if(g.k==='i-move'&&g.key==='para'){
+    /* the narrow end clicks onto a nearby vertex or point (đỉnh parabol, gốc O) */
+    const I=S.para,k=snapKP([I.x,I.y],18)||(BOARDS[S.board].axes&&Math.hypot(I.x-axesOrigin()[0],I.y-axesOrigin()[1])<=18?axesOrigin():null);
+    if(k){I.x=k[0];I.y=k[1]}
   }else if(g.k==='img-move'||g.k==='img-size'){gs=g;selEnd();gs=null;
   }else if(g.k==='drag'){
     if(Math.hypot(g.p1[0]-g.p0[0],g.p1[1]-g.p0[1])>4)commit(buildDrag(S.tool,g.p0,g.p1));
@@ -2595,6 +2654,8 @@ function buildGraph(p){
   P.push({k:'T',s:formula(t,a,b,c),x:round1(tx),y:round1(ty),z:22,al:'left'});
   return{prims:P,c:S.color,w:Math.max(2,S.width),nl:0,kp:kp};
 }
+$('bParaFlip').addEventListener('click',function(){S.para.f=-(S.para.f||1);renderOverlay()});
+$('bParaTurn').addEventListener('click',function(){const pw=insPivotW('para');insSetAngle('para',S.para.a+Math.PI,pw);renderOverlay()});
 $('selPara').addEventListener('change',function(e){
   const pw=insPivotW('para');S.para.k=+e.target.value;insSetAngle('para',S.para.a,pw);renderOverlay();
 });
@@ -2609,7 +2670,7 @@ function sizeAll(){
     a[0].style.width=W+'px';a[0].style.height=H+'px';
   });
   setTf();
-  S.ruler.cm=Math.max(5,Math.min(15,Math.floor((W-110)/PXCM)));
+  if(!S.ruler.cmSet)S.ruler.cm=Math.max(5,Math.min(15,Math.floor((W-110)/PXCM)));
   const C=S.comp;
   if(!placed){placed=true;C.nx=W*0.34;C.ny=H*0.3;C.px=C.nx+Math.min(120,W*0.3);C.py=C.ny}
   else{
