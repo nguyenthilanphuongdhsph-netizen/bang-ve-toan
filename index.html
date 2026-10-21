@@ -57,6 +57,13 @@ body.fs.notools .tools,body.fs.notools .opts{display:none!important}
 .fsbar{position:absolute;left:10px;bottom:10px;z-index:4;display:flex;flex-wrap:wrap;align-items:center;gap:4px;max-width:calc(100% - 40px);
   background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:5px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
 .fsbar .pnum{min-width:6.5em}
+.insbar{position:absolute;right:22px;top:8px;z-index:4;display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+.insbar .isz{display:flex;align-items:center;gap:2px;background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:9px;padding:2px 3px 2px 8px;box-shadow:0 2px 8px rgba(0,0,0,.08);font:600 12px var(--font-ui);color:var(--ink)}
+.insbar .isz span{margin-right:4px}
+.insbar .isz button{min-width:30px;height:28px;font:700 17px var(--font-ui);border:0;border-radius:7px;background:transparent;color:var(--ink);cursor:pointer}
+.insbar .isz button:hover{background:var(--hover)}
+.hbar{position:absolute;left:6px;right:22px;bottom:3px;height:12px;z-index:3;border-radius:7px;background:rgba(110,125,118,.14);touch-action:none}
+.hthumb{position:absolute;top:1px;bottom:1px;left:0;border-radius:6px;background:rgba(70,88,80,.45);cursor:grab;touch-action:none}
 html,body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 input,textarea,select,[contenteditable]{-webkit-user-select:text;user-select:text}
 .board,.board *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
@@ -106,12 +113,15 @@ body.fs .ptabs{display:flex!important}
 .saved{color:var(--muted);font-size:12px;white-space:nowrap}
 .saved.warn{color:var(--danger)}
 .hist{display:flex;gap:4px;flex:none}
-.tools{display:flex;gap:4px;overflow-x:auto;padding:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;scrollbar-width:thin;flex:none}
-.sep{flex:none;width:1px;background:var(--line);margin:4px 4px}
+.tools{display:flex;gap:2px;overflow-x:auto;padding:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;scrollbar-width:thin;flex:none}
+.sep{flex:none;width:1px;background:var(--line);margin:4px 3px}
+.pmenu{position:fixed;z-index:60;display:flex;flex-direction:column;min-width:200px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.pmenu button{text-align:left;border:0;background:transparent;padding:9px 12px;border-radius:7px;font:500 14px var(--font-ui);color:var(--ink);cursor:pointer}
+.pmenu button:hover{background:var(--hover)}
 .tb{
-  flex:none;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:56px;
-  padding:7px 8px 5px;border:0;border-radius:8px;background:transparent;color:var(--ink);
-  font:500 11px/1.1 var(--font-ui);white-space:nowrap;cursor:pointer;
+  flex:none;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:46px;
+  padding:6px 5px 4px;border:0;border-radius:8px;background:transparent;color:var(--ink);
+  font:500 10.5px/1.1 var(--font-ui);white-space:nowrap;cursor:pointer;
 }
 .tb svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .tb:hover{background:var(--hover)}
@@ -227,6 +237,11 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
       <button type="button" data-pm="1" aria-pressed="true">Viết tay</button>
       <button type="button" data-pm="2" aria-pressed="false">Ghi tên điểm</button>
       <button type="button" data-pm="3" aria-pressed="false">Vẽ thẳng</button>
+    </div>
+    <div class="og seg" data-for="tangent" id="segT" role="group" aria-label="Kiểu tiếp tuyến">
+      <button type="button" data-tm="1" aria-pressed="true" title="Tiếp tuyến tại một điểm trên đường tròn">Tiếp tuyến 1</button>
+      <button type="button" data-tm="2" aria-pressed="false" title="Một tiếp tuyến kẻ từ điểm nằm ngoài đường tròn">Tiếp tuyến 2</button>
+      <button type="button" data-tm="3" aria-pressed="false" title="Hai tiếp tuyến kẻ từ điểm nằm ngoài đường tròn">2 tiếp tuyến</button>
     </div>
     <div class="og" data-for="line">
       <label>Loại
@@ -395,6 +410,8 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
         <button class="btn sm" id="fTools" aria-pressed="true">Ẩn công cụ</button>
         <button class="btn sm primary" id="fExit">Thoát toàn màn hình</button>
       </div>
+      <div class="insbar" id="insBar" hidden></div>
+      <div class="hbar" id="hbar" aria-hidden="true" hidden><div class="hthumb" id="hthumb"></div></div>
       <div class="vbar" id="vbar" aria-hidden="true"><div class="vthumb" id="vthumb"></div></div>
       <div class="fab" id="fabReg" hidden>
         <button class="btn danger" id="bRegDel">Xóa vùng</button>
@@ -1077,11 +1094,12 @@ function paraGeom(){
   const hole={c:[0,6.94*Q],r:0.74*Q};
   const F=function(q){return[f*q[0],-q[1]]};
   return{U:U,a:a,A:A,f:f,k:k,L:L,branch:branch.map(F),ext:ext.map(F),out:out.map(F),slot:edge.map(F),slotPoly:slotPoly.map(F),sv:F([0,s0]),
-    hole:{c:F(hole.c),r:hole.r},tip:F([0,L]),grip:F([0.45*Q,3.0*Q]),lab:F([0,5.75*Q])};
+    hole:{c:F(hole.c),r:hole.r},tip:F([0,L]),grip:F([0.5*Q,3.5*Q]),mov:F([0.5*Q,2.15*Q]),lab:F([0,5.75*Q])};
 }
 const PARA={
   pivot:function(){return[0,0]},
   rot:function(){return paraGeom().grip},
+  mov:function(){return paraGeom().mov},
   edges:function(){
     const I=S.para,G=paraGeom(),w=function(q){return toW(I,q[0],q[1])},circ=[];
     for(let i=0;i<=40;i++){const t=TAU*i/40;circ.push(w([G.hole.c[0]+G.hole.r*Math.cos(t),G.hole.c[1]+G.hole.r*Math.sin(t)]))}
@@ -1116,6 +1134,11 @@ const PARA={
     g.fillText('đầu to: y = '+nm(G.a)+'x²',G.lab[0],G.lab[1]+0.32*k);
     g.fillText('khe: y = '+nm(2*G.a)+'x²',G.lab[0],G.lab[1]+0.64*k);
     handle(g,G.grip[0],G.grip[1],12);
+    /* move knob: four arrows, always drags the ruler whatever tool is chosen */
+    const m=G.mov;g.fillStyle='#fff';g.strokeStyle='#3f6b00';g.lineWidth=1.4;g.beginPath();g.arc(m[0],m[1],12,0,TAU);g.fill();g.stroke();
+    g.beginPath();g.moveTo(m[0]-7,m[1]);g.lineTo(m[0]+7,m[1]);g.moveTo(m[0],m[1]-7);g.lineTo(m[0],m[1]+7);
+    [[1,0],[-1,0],[0,1],[0,-1]].forEach(function(d){const x=m[0]+d[0]*7,y=m[1]+d[1]*7;g.moveTo(x-d[1]*2.5-d[0]*2.5,y-d[0]*2.5-d[1]*2.5);g.lineTo(x,y);g.lineTo(x+d[1]*2.5-d[0]*2.5,y+d[0]*2.5-d[1]*2.5)});
+    g.stroke();
     g.restore();
   }
 };
@@ -1129,6 +1152,7 @@ function insHit(p,canSnap){
     const q=toL(I,p[0],p[1]),rh=D.rot();
     if(Math.hypot(q[0]-rh[0],q[1]-rh[1])<=16)return{key:key,k:'rot'};
     if(D.arm){const a=D.arm();if(Math.hypot(q[0]-a[0],q[1]-a[1])<=16)return{key:key,k:'arm'}}
+    if(D.mov){const m=D.mov();if(Math.hypot(q[0]-m[0],q[1]-m[1])<=16)return{key:key,k:'move'}}
     const inside=D.inside(q[0],q[1]);
     if(canSnap){
       let best=null;
@@ -1204,16 +1228,35 @@ function circlesNow(){
 function rmk(P,B,u1,u2,m){
   P.push({k:'L',p:[B[0]+u1[0]*m,B[1]+u1[1]*m,B[0]+(u1[0]+u2[0])*m,B[1]+(u1[1]+u2[1])*m,B[0]+u2[0]*m,B[1]+u2[1]*m]});
 }
-function tangentFor(p){
-  const cs=circlesNow();
-  if(!cs.length)return{msg:'Vẽ đường tròn trước (công cụ Đường tròn hoặc Compa)'};
-  let best=null;
+/* three ways, chosen in the options bar (S.tm):
+   1 = Tiếp tuyến 1: tangent at a point of the circle (the touch is pulled onto the nearest circle);
+   2 = Tiếp tuyến 2: one tangent from an outside point — touch the point, then touch near the tiếp điểm you want;
+   3 = 2 tiếp tuyến: both tangents from an outside point. */
+let TAN=null;   /* mode 2: {A, c} once the outside point is chosen */
+function nearestCircle(p){
+  const cs=circlesNow();let best=null;
   cs.forEach(function(c){const d=Math.hypot(p[0]-c.x,p[1]-c.y),g=Math.abs(d-c.r);if(!best||g<best.g)best={c:c,d:d,g:g}});
-  const c=best.c,d=best.d,r=c.r,O=[c.x,c.y];
-  if(d<1e-6)return{msg:'Chạm lên đường tròn hoặc ra ngoài đường tròn'};
-  const n=[(p[0]-c.x)/d,(p[1]-c.y)/d],P=[];let nl=0;
-  if(best.g<=12){
-    const Tp=[c.x+n[0]*r,c.y+n[1]*r],u=[-n[1],n[0]],L=Math.max(r*1.2,140);
+  return best;
+}
+function tanFrom(A,c){
+  const d=Math.hypot(A[0]-c.x,A[1]-c.y);if(d<=c.r+0.5)return null;
+  const phi=Math.atan2(A[1]-c.y,A[0]-c.x),al=Math.acos(Math.min(1,c.r/d));
+  return[phi+al,phi-al].map(function(a){return[c.x+c.r*Math.cos(a),c.y+c.r*Math.sin(a)]});
+}
+function tanPrims(P,A,c,Tp){
+  const v=unit(Tp[0]-A[0],Tp[1]-A[1]),ext=Math.max(40,c.r*0.5);
+  P.push({k:'L',p:[A[0],A[1],Tp[0]+v[0]*ext,Tp[1]+v[1]*ext]});
+  P.push({k:'L',p:[c.x,c.y,Tp[0],Tp[1]],d:true});
+  rmk(P,Tp,unit(c.x-Tp[0],c.y-Tp[1]),[-v[0],-v[1]],10);
+  P.push(dot(Tp[0],Tp[1]));
+}
+function tangentFor(p){
+  const tm=S.tm||1,best=nearestCircle(TAN?TAN.A:p);
+  if(!best)return{msg:'Vẽ đường tròn trước (công cụ Đường tròn hoặc Compa)'};
+  const c=TAN?TAN.c:best.c,O=[c.x,c.y],P=[];let nl=0;
+  if(tm===1){
+    const d=Math.hypot(p[0]-c.x,p[1]-c.y);if(d<1e-6)return{msg:'Chạm gần đường tròn'};
+    const n=[(p[0]-c.x)/d,(p[1]-c.y)/d],r=c.r,Tp=[c.x+n[0]*r,c.y+n[1]*r],u=[-n[1],n[0]],L=Math.max(r*1.2,140);
     P.push({k:'L',p:[Tp[0]-u[0]*L,Tp[1]-u[1]*L,Tp[0]+u[0]*L,Tp[1]+u[1]*L]});
     P.push({k:'L',p:[c.x,c.y,Tp[0],Tp[1]],d:true});
     rmk(P,Tp,[-n[0],-n[1]],u,10);
@@ -1221,16 +1264,21 @@ function tangentFor(p){
     if(S.label){const Lb=nextLabels(1);nl=1;const q=[Tp[0]+n[0]*18+u[0]*14,Tp[1]+n[1]*18+u[1]*14];P.push(T(Lb[0],q[0],q[1]))}
     return{item:mkItem(P,nl,[Tp]),at:Tp};
   }
-  if(d<r)return{msg:'Điểm nằm trong đường tròn, không kẻ được tiếp tuyến'};
-  const phi=Math.atan2(n[1],n[0]),al=Math.acos(Math.min(1,r/d));
-  const pts=[phi+al,phi-al].map(function(a){return[c.x+r*Math.cos(a),c.y+r*Math.sin(a)]});
-  pts.forEach(function(Tp){
-    const v=unit(Tp[0]-p[0],Tp[1]-p[1]),ext=Math.max(40,r*0.5);
-    P.push({k:'L',p:[p[0],p[1],Tp[0]+v[0]*ext,Tp[1]+v[1]*ext]});
-    P.push({k:'L',p:[c.x,c.y,Tp[0],Tp[1]],d:true});
-    rmk(P,Tp,unit(c.x-Tp[0],c.y-Tp[1]),[-v[0],-v[1]],10);
-    P.push(dot(Tp[0],Tp[1]));
-  });
+  if(tm===2&&TAN){
+    const pts=tanFrom(TAN.A,c);if(!pts)return{msg:'Điểm nằm trong đường tròn'};
+    const i=Math.hypot(p[0]-pts[0][0],p[1]-pts[0][1])<=Math.hypot(p[0]-pts[1][0],p[1]-pts[1][1])?0:1,Tp=pts[i];
+    tanPrims(P,TAN.A,c,Tp);P.push(dot(TAN.A[0],TAN.A[1]));
+    if(S.label){const Lb=nextLabels(2);nl=2;const qa=outward(TAN.A,O,18),qt=outward(Tp,O,18);P.push(T(Lb[0],qa[0],qa[1]));P.push(T(Lb[1],qt[0],qt[1]))}
+    return{item:mkItem(P,nl,[TAN.A,Tp]),other:pts[1-i]};
+  }
+  const pts=tanFrom(p,c);
+  if(!pts)return{msg:'Chọn một điểm nằm ngoài đường tròn'};
+  if(tm===2){
+    /* first touch: only show where the two tangents would go; the touch itself fixes the outside point */
+    pts.forEach(function(Tp){tanPrims(P,p,c,Tp)});P.push(dot(p[0],p[1]));
+    return{item:mkItem(P,0,[p]),pickA:true,c:c,msg:'Chạm chọn điểm này, rồi chạm gần tiếp điểm muốn vẽ'};
+  }
+  pts.forEach(function(Tp){tanPrims(P,p,c,Tp)});
   P.push(dot(p[0],p[1]));
   if(S.label){
     const Lb=nextLabels(3);nl=3;
@@ -1741,8 +1789,8 @@ const IC={
   del:'<path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/>'
 };
 function ic(n){return '<svg viewBox="0 0 24 24" aria-hidden="true">'+IC[n]+'</svg>'}
-const TOOLS=[['pen','Bút'],['hl','Bút tô'],['laser','Bút laze'],['region','Chọn vùng'],['eraser','Tẩy'],['text','Chữ'],'|',['point','Điểm'],['line','Đoạn thẳng'],['polygon','Đa giác'],
-  ['shape','Hình phẳng'],['circle','Đường tròn'],['tangent','Tiếp tuyến'],['graph','Đồ thị'],['solid','Không gian'],'|',['select','Chọn ảnh'],['image','Chèn ảnh'],['pdf','Chèn PDF'],'|',['ruler','Thước'],['sq','Ê ke'],['pro','Đo góc'],['para','Thước parabol'],['comp','Compa']];
+const TOOLS=[['pen','Bút'],['hl','Bút tô'],['laser','Bút laze'],['eraser','Tẩy'],['text','Chữ'],['region','Chọn vùng'],'|',['point','Điểm'],['line','Đoạn thẳng'],['polygon','Đa giác'],
+  ['shape','Hình phẳng'],['circle','Đường tròn'],['tangent','Tiếp tuyến'],['graph','Đồ thị'],['solid','Hình khối'],'|',['ruler','Thước'],['sq','Ê ke'],['pro','Đo góc'],['para','Parabol'],['comp','Compa'],'|',['insert','Chèn ▾']];
 const HINT={
   pen:'Viết, vẽ tự do; nét đậm nhạt theo lực bút. Đặt bút sát mép thước hoặc ê ke để kẻ thẳng.',
   laser:'Bút laze: chỉ cho học sinh xem, vệt sáng tự mờ đi và không lưu vào bài.',
@@ -1757,7 +1805,7 @@ const HINT={
   circle:'Kéo từ tâm ra, có hiện bán kính (cm).',
   solid:'Kéo để vẽ hình khối, nét khuất tự là nét đứt.',
   graph:'Nhập hệ số rồi chạm vào bảng. Nền Hệ trục Oxy: vẽ trên trục có sẵn. Nền khác: chỗ chạm là gốc O, tự vẽ kèm hệ trục.',
-  tangent:'Chạm lên đường tròn để kẻ tiếp tuyến tại điểm đó; chạm ra ngoài để kẻ hai tiếp tuyến từ điểm đó.',
+  tangent:'Tiếp tuyến 1: chạm lên đường tròn để kẻ tiếp tuyến tại điểm đó. Tiếp tuyến 2: chạm một điểm ngoài đường tròn, rồi chạm gần tiếp điểm muốn vẽ (kẻ 1 tiếp tuyến). 2 tiếp tuyến: chạm một điểm ngoài để kẻ cả hai.',
   select:'Chạm vào ảnh để chọn; kéo để dời, kéo góc để phóng to/thu nhỏ, phím Delete để xóa. Có thể dán ảnh (Ctrl+V) hoặc kéo thả file vào bảng.'
 };
 const INS_HINT={
@@ -1772,7 +1820,7 @@ function updHint(){
   if(S.para.on)a.push('Thước parabol: bấm + / − để phóng to, thu nhỏ parabol (hệ số a ghi trên thước). Kéo thước để chấm cam ở đầu to trùng đỉnh parabol (thước tự hít vào gốc O hoặc điểm có sẵn), thân thước dựng thẳng theo trục đối xứng. Kẻ vòng theo mép đầu to là được cả hai nhánh y = ax². Mép dưới của khe cong vẽ y = 2ax². Đi tiếp theo nét chấm mờ để kéo dài nhánh ra ngoài thước. a < 0 thì bấm Úp thước.');
   if(S.pro.on)a.push(INS_HINT.pro);
   if(S.comp.on)a.push(INS_HINT.comp);
-  a.push(S.finger==='draw'?'Ngón tay đang vẽ: vuốt hai ngón để kéo trang. Bấm nút Tay để đổi.':'Ngón tay kéo trang lên xuống (hai ngón để phóng to); vẽ bằng bút hoặc chuột. Bấm nút Tay để vẽ bằng ngón tay.');
+  if(!navigator.maxTouchPoints)a.push('Lăn chuột trên thước để thu nhỏ, phóng to thước. Khi phóng to trang: giữ phím Cách (Space) rồi kéo chuột, hoặc kéo thanh cuộn dưới đáy, để dời trang sang trái phải.');else a.push(S.finger==='draw'?'Ngón tay đang vẽ: vuốt hai ngón để kéo trang. Bấm nút Tay để đổi.':'Ngón tay kéo trang lên xuống (hai ngón để phóng to); vẽ bằng bút hoặc chuột. Bấm nút Tay để vẽ bằng ngón tay.');
   hintEl.textContent=a.join(' ');hintEl.title=hintEl.textContent;
 }
 function updOpts(){
@@ -1780,13 +1828,13 @@ function updOpts(){
   document.querySelectorAll('.og[data-for]').forEach(function(el){const f=el.dataset.for.split(',');el.hidden=f.indexOf(S.tool)<0&&f.indexOf(k2)<0});
   document.querySelectorAll('.og[data-ins]').forEach(function(el){el.hidden=!S[el.dataset.ins].on});
 }
-function updCursor(c){cOv.style.cursor=c||(S.tool==='text'?'text':'crosshair')}
+function updCursor(c){if(typeof mpan!=='undefined'&&mpan)return;cOv.style.cursor=c||(typeof spaceDown!=='undefined'&&spaceDown?'grab':null)||(S.tool==='text'?'text':(typeof penCursor==='function'&&penCursor())||'crosshair')}
 function setTool(id){
   finalizeGlyph();hideAlts();
   if(S.poly)polyCancel();
   commitText();
-  S.tool=id;gs=null;
-  Object.keys(toolBtns).forEach(function(k){if(k!=='image'&&k!=='pdf'&&(!S[k]||S[k].on===undefined))toolBtns[k].setAttribute('aria-pressed',String(k===id))});
+  S.tool=id;gs=null;TAN=null;
+  Object.keys(toolBtns).forEach(function(k){if(k!=='image'&&k!=='pdf'&&(!S[k]||S[k].on===undefined))toolBtns[k].setAttribute('aria-pressed',String(k===id||(k==='insert'&&id==='select')))});
   if(id!=='select')selImg=null;
   if(id!=='region'){REG=null;if(typeof updRegFab==='function')try{updRegFab()}catch(_){}}
   updSwatches();
@@ -1809,14 +1857,28 @@ function toggleIns(key,b){
   }
   updOpts();updHist();updHint();renderOverlay();
 }
+const TIPS={pen:'Bút viết, vẽ tự do',hl:'Bút tô dạ quang',laser:'Bút laze trình chiếu: nét sáng tự mờ',eraser:'Tẩy',text:'Gõ chữ',region:'Chọn vùng để dời, phóng to, nhân đôi, xóa',
+  point:'Điểm',line:'Đoạn thẳng, tia, đường thẳng',polygon:'Đa giác',shape:'Hình phẳng có sẵn',circle:'Đường tròn, elip',tangent:'Tiếp tuyến của đường tròn',graph:'Đồ thị hàm số',solid:'Hình không gian',
+  ruler:'Thước thẳng',sq:'Ê ke',pro:'Thước đo góc',para:'Thước parabol',comp:'Compa',insert:'Chèn ảnh, chèn PDF, sửa ảnh'};
+function openInsertMenu(btn){
+  let m=$('insMenu');
+  if(m){m.remove();return}
+  m=document.createElement('div');m.id='insMenu';m.className='pmenu';
+  [['Chèn ảnh',function(){$('fImg').click()}],['Chèn PDF',function(){$('fPdf').click()}],['Chọn, dời, đổi cỡ ảnh',function(){setTool('select')}]].forEach(function(it){
+    const x=document.createElement('button');x.type='button';x.textContent=it[0];x.addEventListener('click',function(){m.remove();it[1]()});m.appendChild(x);
+  });
+  document.body.appendChild(m);
+  const r=btn.getBoundingClientRect();m.style.top=(r.bottom+4)+'px';m.style.left=Math.max(6,Math.min(innerWidth-m.offsetWidth-6,r.left))+'px';
+  setTimeout(function(){document.addEventListener('pointerdown',function f(e){if(!m.contains(e.target)&&e.target!==btn&&!btn.contains(e.target))m.remove();document.removeEventListener('pointerdown',f,true)},true)},0);
+}
 TOOLS.forEach(function(t){
   if(t==='|'){const s=document.createElement('span');s.className='sep';toolsEl.appendChild(s);return}
   const b=document.createElement('button');
-  b.type='button';b.className='tb';b.innerHTML=ic(t[0])+'<span>'+t[1]+'</span>';
+  b.type='button';b.className='tb';b.innerHTML=ic(t[0]==='insert'?'image':t[0])+'<span>'+t[1]+'</span>';b.title=TIPS[t[0]]||t[1];
   b.setAttribute('aria-pressed','false');
   const isIns=['ruler','sq','pro','para','comp'].indexOf(t[0])>=0;
   if(t[0]==='image'||t[0]==='pdf')b.removeAttribute('aria-pressed');
-  b.addEventListener('click',function(){if(t[0]==='image')$('fImg').click();else if(t[0]==='pdf')$('fPdf').click();else if(isIns)toggleIns(t[0],b);else setTool(t[0])});
+  b.addEventListener('click',function(){if(t[0]==='insert')openInsertMenu(b);else if(t[0]==='image')$('fImg').click();else if(t[0]==='pdf')$('fPdf').click();else if(isIns)toggleIns(t[0],b);else setTool(t[0])});
   toolsEl.appendChild(b);toolBtns[t[0]]=b;
 });
 bUndo.innerHTML=ic('undo');bRedo.innerHTML=ic('redo');$('bClear').innerHTML=ic('trash');
@@ -2170,7 +2232,7 @@ let gs=null,rafP=false;
 function req(){if(rafP)return;rafP=true;requestAnimationFrame(function(){rafP=false;renderOverlay()})}
 function eraserSize(){return Math.max(18,S.width*6)}
 function renderOverlay(){
-  vClear(gOv);
+  vClear(gOv);if(typeof updInsBar==='function')updInsBar();
   if(gs&&gs.k==='drag'){
     const it=buildDrag(S.tool,gs.p0,gs.p1);
     gOv.globalAlpha=.85;drawItem(gOv,it);gOv.globalAlpha=1;
@@ -2194,8 +2256,10 @@ function renderOverlay(){
   }
   if(S.tool==='tangent'&&S.mouse&&!gs){
     const r=tangentFor(S.mouse);
-    if(r.item){gOv.globalAlpha=.45;drawItem(gOv,r.item);gOv.globalAlpha=1}
-    else if(r.msg)chip(gOv,r.msg,S.mouse[0],S.mouse[1]-24);
+    if(r.item){gOv.globalAlpha=r.pickA?.3:.45;drawItem(gOv,r.item);gOv.globalAlpha=1}
+    if(r.msg)chip(gOv,r.msg,S.mouse[0],S.mouse[1]-24);
+    if(TAN){gOv.fillStyle=col(S.color);gOv.beginPath();gOv.arc(TAN.A[0],TAN.A[1],5,0,TAU);gOv.fill();
+      if(r.other){gOv.save();gOv.globalAlpha=.2;gOv.strokeStyle=col(S.color);gOv.lineWidth=S.width;gOv.setLineDash([5,6]);gOv.beginPath();gOv.moveTo(TAN.A[0],TAN.A[1]);gOv.lineTo(r.other[0],r.other[1]);gOv.stroke();gOv.restore()}}
   }
   const gl=(S.glyph?S.glyph.strokes:[]).concat(gs&&gs.k==='glyph'?[gs.pts]:[]);
   if(gl.length){
@@ -2267,7 +2331,7 @@ function startTool(e,p,edge){
   else if(t==='region')regStart(p);
   else if(t==='laser'){LASER.down=true;LASER.pts.push({x:p[0],y:p[1],t:performance.now(),brk:true});gs={k:'laser'};laserKick()}
   else if(t==='graph'){const it=buildGraph(kpSnap(p));if(it)commit(it);else req()}
-  else if(t==='tangent'){const r=tangentFor(kpSnap(p));if(r.item)commit(r.item)}
+  else if(t==='tangent'){const q=kpSnap(p),r=tangentFor(q);if(r.pickA){TAN={A:q,c:r.c};req()}else if(r.item){commit(r.item);TAN=null}}
   else{const q=edge?snapEdge(p,edge):(t==='line'||t==='circle'?kpSnap(p):p);gs={k:'drag',p0:q,p1:q,edge:edge}}
   req();
 }
@@ -2392,7 +2456,7 @@ function setView(nx,ny,nz){
   if(!dz){INSK.forEach(function(k){S[k].x+=dx;S[k].y+=dy});S.comp.nx+=dx;S.comp.px+=dx;S.comp.ny+=dy;S.comp.py+=dy}
   S.sx=nx;S.sy=ny;S.z=nz;S.mouse=null;
   setTf();updZoom();
-  if(!fullRaf)fullRaf=requestAnimationFrame(function(){fullRaf=0;drawBg();redraw();renderOverlay();updVbar()});
+  if(!fullRaf)fullRaf=requestAnimationFrame(function(){fullRaf=0;drawBg();redraw();renderOverlay();updVbar();if(typeof updHbar==='function')updHbar()});
 }
 function setScroll(y){setView(S.sx,y,S.z)}
 function zoomAt(nz,ax,ay){
@@ -2410,9 +2474,15 @@ function updVbar(){
   const M=maxScroll(),tr=vbar.clientHeight,th=Math.max(40,tr*VH()/(M+VH())),top=(tr-th)*(M?S.sy/M:0);
   vthumb.style.height=th+'px';vthumb.style.transform='translateY('+top+'px)';
 }
+let wheelT=0,wheelIns=null,wheelAcc=0;
 wrap.addEventListener('wheel',function(e){
   if(gs)return;e.preventDefault();
   const k=e.deltaMode===1?32:e.deltaMode===2?H:1,r=wrap.getBoundingClientRect();
+  /* the wheel over a ruler (at the start of a wheel gesture) makes that ruler bigger or smaller instead of scrolling */
+  const now=performance.now();
+  if(now-wheelT>350){wheelIns=null;wheelAcc=0;if(!e.ctrlKey&&!e.metaKey&&!e.shiftKey){const h=insHit(pt(e),false);if(h&&h.key!=='comp')wheelIns=h.key}}
+  wheelT=now;
+  if(wheelIns){wheelAcc+=e.deltaY*k;if(Math.abs(wheelAcc)>=60){resizeIns(wheelIns,wheelAcc<0?1:-1);wheelAcc=0}return}
   if(e.ctrlKey||e.metaKey){zoomAt(S.z*Math.exp(-e.deltaY*k*0.0018),e.clientX-r.left,e.clientY-r.top);return}
   if(e.shiftKey)setView(S.sx+e.deltaY*k/S.z,S.sy,S.z);
   else setView(S.sx+e.deltaX*k/S.z,S.sy+e.deltaY*k/S.z,S.z);
@@ -2630,6 +2700,7 @@ document.addEventListener('keydown',function(e){
   else if(e.key==='End'){e.preventDefault();setScroll(contentBottom()-VH()*0.5)}
   else if((e.key==='Delete'||e.key==='Backspace')&&S.tool==='region'&&REG){e.preventDefault();regDelete()}
   else if(e.key==='Escape'&&REG){REG=null;updRegFab();renderOverlay()}
+  else if(e.key==='Escape'&&TAN){TAN=null;renderOverlay()}
   else if((e.key==='Delete'||e.key==='Backspace')&&S.tool==='select'&&selImg){e.preventDefault();delSel()}
   else if(e.key==='Enter'&&S.poly)polyDone();
   else if(e.key==='Escape'&&S.poly)polyCancel();
@@ -2944,7 +3015,7 @@ function setFinger(m){
 setFinger(S.finger);
 
 /* ---------- version: shown in the sidebar; an installed copy (iPad home screen) checks for a newer one and offers to reload ---------- */
-const APP_VER='2026-10-21.3';
+const APP_VER='2026-10-21.4';
 (function(){
   const note=$('note');if(note){const s=document.createElement('div');s.className='ver';s.textContent='Phiên bản '+APP_VER;note.parentNode.insertBefore(s,note.nextSibling)}
   if(location.protocol!=='https:')return;
@@ -2981,6 +3052,78 @@ const APP_VER='2026-10-21.3';
     if(sel&&sel.rangeCount&&!editable(document.activeElement))try{sel.removeAllRanges()}catch(_){}
   });
 })();
+
+document.querySelectorAll('#segT button').forEach(function(b){
+  b.addEventListener('click',function(){
+    S.tm=+b.dataset.tm;TAN=null;
+    document.querySelectorAll('#segT button').forEach(function(x){x.setAttribute('aria-pressed',String(x===b))});
+    renderOverlay();
+  });
+});
+
+/* ---------- size buttons on the board for every ruler that is out ---------- */
+var INS_NAME={ruler:'Thước thẳng',sq:'Ê ke',pro:'Đo góc',para:'Thước parabol'};
+var insBarKey='';
+function updInsBar(){
+  if(!$('insBar'))return;
+  const on=['ruler','sq','pro','para'].filter(function(k){return S[k].on}),key=on.join(',');
+  if(key===insBarKey)return;insBarKey=key;
+  const bar=$('insBar');bar.hidden=!on.length;bar.innerHTML='';
+  on.forEach(function(k){
+    const d=document.createElement('div');d.className='isz';
+    d.innerHTML='<span>'+INS_NAME[k]+'</span><button type="button" title="Thu nhỏ '+INS_NAME[k]+'">−</button><button type="button" title="Phóng to '+INS_NAME[k]+'">+</button>';
+    const bs=d.querySelectorAll('button');
+    bs[0].addEventListener('click',function(){resizeIns(k,-1)});bs[1].addEventListener('click',function(){resizeIns(k,1)});
+    bar.appendChild(d);
+  });
+}
+/* ---------- horizontal bar: shown when the page is zoomed in wider than the screen ---------- */
+var hbar=$('hbar'),hthumb=$('hthumb'),hdrag=null;
+function updHbar(){
+  if(!hbar)return;const vw=VW(),show=vw<W-0.5;hbar.hidden=!show;if(!show)return;
+  const tr=hbar.clientWidth,th=Math.max(40,tr*vw/W),left=(tr-th)*(S.sx/Math.max(1,W-vw));
+  hthumb.style.width=th+'px';hthumb.style.transform='translateX('+left+'px)';
+}
+hthumb.addEventListener('pointerdown',function(e){e.preventDefault();e.stopPropagation();try{hthumb.setPointerCapture(e.pointerId)}catch(_){}hdrag={x:e.clientX,sx:S.sx}});
+hthumb.addEventListener('pointermove',function(e){
+  if(!hdrag)return;const room=Math.max(1,hbar.clientWidth-hthumb.offsetWidth);
+  setView(hdrag.sx+(e.clientX-hdrag.x)*(W-VW())/room,S.sy,S.z);
+});
+hthumb.addEventListener('pointerup',function(){hdrag=null});hthumb.addEventListener('pointercancel',function(){hdrag=null});
+hbar.addEventListener('pointerdown',function(e){if(e.target!==hbar)return;e.preventDefault();const r=hthumb.getBoundingClientRect();setView(S.sx+(e.clientX>r.right?1:-1)*VW()*0.8,S.sy,S.z)});
+/* ---------- pan with the mouse: hold Space (or the middle button) and drag ---------- */
+var spaceDown=false,mpan=null;
+document.addEventListener('keydown',function(e){
+  if(e.code==='Space'&&!e.repeat&&!(e.target&&e.target.closest&&e.target.closest('input,textarea,select,[contenteditable="true"]'))){spaceDown=true;cOv.style.cursor='grab';e.preventDefault()}
+});
+document.addEventListener('keyup',function(e){if(e.code==='Space'){spaceDown=false;if(!mpan)updCursor()}});
+cOv.addEventListener('pointerdown',function(e){
+  if(e.pointerType==='mouse'&&(e.button===1||(e.button===0&&spaceDown))){
+    e.preventDefault();e.stopImmediatePropagation();try{cOv.setPointerCapture(e.pointerId)}catch(_){}
+    mpan={x:e.clientX,y:e.clientY,sx:S.sx,sy:S.sy};cOv.style.cursor='grabbing';
+  }
+},true);
+cOv.addEventListener('pointermove',function(e){
+  if(!mpan)return;e.stopImmediatePropagation();
+  setView(mpan.sx-(e.clientX-mpan.x)/S.z,mpan.sy-(e.clientY-mpan.y)/S.z,S.z);
+},true);
+['pointerup','pointercancel'].forEach(function(t){cOv.addEventListener(t,function(e){if(!mpan)return;e.stopImmediatePropagation();mpan=null;updCursor(spaceDown?'grab':null)},true)});
+/* ---------- pen cursor: a dot in the pen's colour and size, so the tip is easy to see ---------- */
+var curKey='',curVal='';
+function penCursor(){
+  const t=S.tool;
+  if(t!=='pen'&&t!=='hl'&&t!=='laser')return null;
+  if(t==='pen'&&S.pm===2)return null;
+  let c,r,a=1;
+  if(t==='laser'){c='#ef4444';r=5}
+  else if(t==='hl'){c=col(S.hlc);r=Math.min(20,Math.max(5,S.width*3*S.z/2));a=.55}
+  else{c=col(S.color);r=Math.min(14,Math.max(3,S.width*S.z/2+1))}
+  const key=t+c+r+a;if(key===curKey)return curVal;
+  const s=Math.ceil(r*2+6),m=s/2;
+  const svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+s+'" height="'+s+'"><circle cx="'+m+'" cy="'+m+'" r="'+(r+1.5)+'" fill="none" stroke="white" stroke-width="2"/><circle cx="'+m+'" cy="'+m+'" r="'+r+'" fill="'+c+'" fill-opacity="'+a+'" stroke="#1f2937" stroke-width="1"/></svg>';
+  curKey=key;curVal='url("data:image/svg+xml;utf8,'+encodeURIComponent(svg)+'") '+Math.round(m)+' '+Math.round(m)+', crosshair';
+  return curVal;
+}
 
 /* ---------- sizing and start ---------- */
 let placed=false;
