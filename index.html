@@ -57,6 +57,7 @@ body.fs.notools .tools,body.fs.notools .opts{display:none!important}
 .fsbar{position:absolute;left:10px;bottom:10px;z-index:4;display:flex;flex-wrap:wrap;align-items:center;gap:4px;max-width:calc(100% - 40px);
   background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:5px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
 .fsbar .pnum{min-width:6.5em}
+.btn.hand{white-space:nowrap}.btn.hand.draw{background:#fff4d6;border-color:#e0b44a}
 .zoom{display:flex;align-items:center;gap:4px;flex:none}
 .zoom .tb.sm,.fsbar #fZout,.fsbar #fZin{font:600 18px var(--font-ui);min-width:34px;padding:4px}
 .zv{min-width:4.2em;font-variant-numeric:tabular-nums}
@@ -199,6 +200,7 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
     <div class="crumb" id="crumb"></div>
     <span class="saved" id="saved"></span>
     <div class="hist">
+      <button class="btn sm hand" id="bHand" title="Chạm ngón tay để kéo trang hay để vẽ"></button>
       <button class="tb sm" id="bFull" title="Toàn màn hình" aria-label="Toàn màn hình" aria-pressed="false"></button>
       <button class="tb sm" id="bUndo" title="Hoàn tác (Ctrl+Z)" aria-label="Hoàn tác"></button>
       <button class="tb sm" id="bRedo" title="Làm lại (Ctrl+Y)" aria-label="Làm lại"></button>
@@ -370,8 +372,9 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
       <canvas id="img"></canvas>
       <canvas id="ink"></canvas>
       <canvas id="over"></canvas>
-      <div class="empty" id="empty"><strong>Trang còn trống</strong><span>Chọn công cụ phía trên để viết, vẽ. Trang dài xuống dưới: lăn chuột hoặc vuốt hai ngón để kéo trang.</span></div>
+      <div class="empty" id="empty"><strong>Trang còn trống</strong><span>Chọn công cụ phía trên để viết, vẽ. Trang dài xuống dưới: lăn chuột hoặc vuốt ngón tay để kéo trang.</span></div>
       <div class="fsbar" id="fsbar" hidden>
+        <button class="btn sm hand" id="fHand" title="Chạm ngón tay để kéo trang hay để vẽ"></button>
         <button class="tb sm" id="fUndo" title="Hoàn tác" aria-label="Hoàn tác"></button>
         <button class="tb sm" id="fRedo" title="Làm lại" aria-label="Làm lại"></button>
         <span class="fsep"></span>
@@ -1764,7 +1767,7 @@ function updHint(){
   if(S.para.on)a.push('Thước parabol: bấm + / − để phóng to, thu nhỏ parabol (hệ số a ghi trên thước). Kéo thước để chấm cam ở đầu to trùng đỉnh parabol (thước tự hít vào gốc O hoặc điểm có sẵn), thân thước dựng thẳng theo trục đối xứng. Kẻ vòng theo mép đầu to là được cả hai nhánh y = ax². Mép dưới của khe cong vẽ y = 2ax². Đi tiếp theo nét chấm mờ để kéo dài nhánh ra ngoài thước. a < 0 thì bấm Úp thước.');
   if(S.pro.on)a.push(INS_HINT.pro);
   if(S.comp.on)a.push(INS_HINT.comp);
-  a.push(typeof penSeen!=='undefined'&&penSeen?'Đang dùng bút: ngón tay chỉ để kéo trang.':'Lăn chuột, vuốt hai ngón hoặc kéo thanh bên phải để kéo trang lên xuống.');
+  a.push(S.finger==='draw'?'Ngón tay đang vẽ: vuốt hai ngón để kéo trang. Bấm nút Tay để đổi.':'Ngón tay kéo trang lên xuống (hai ngón để phóng to); vẽ bằng bút hoặc chuột. Bấm nút Tay để vẽ bằng ngón tay.');
   hintEl.textContent=a.join(' ');hintEl.title=hintEl.textContent;
 }
 function updOpts(){
@@ -2444,11 +2447,11 @@ cOv.addEventListener('pointerdown',function(e){
   if(e.button>0)return;
   e.preventDefault();
   try{cOv.setPointerCapture(e.pointerId)}catch(_){}
-  if(e.pointerType==='pen'&&!penSeen){penSeen=true;updHint()}
+  if(e.pointerType==='pen'&&!penSeen){penSeen=true;if(S.finger==='draw')setFinger('pan');updHint()}
   if(e.pointerType==='touch'){
     TOUCH.set(e.pointerId,[e.clientX,e.clientY]);
     /* two fingers always scroll; once a pen (Apple Pencil) has been used, one finger scrolls too, so a resting palm never draws */
-    if(TOUCH.size>=2||penSeen){if(TOUCH.size>=2)cancelGesture();startPan();return}
+    if(TOUCH.size>=2||S.finger!=='draw'){if(TOUCH.size>=2)cancelGesture();startPan();return}
   }
   if(pan)return;
   const p=pt(e);S.mouse=p;
@@ -2917,6 +2920,21 @@ ptabs.addEventListener('click',function(e){
   if(b.id==='ptAdd'){$('bNewP').click();return}
   if(b.dataset.pg)openPage(b.dataset.pg);
 });
+
+/* ---------- finger mode: on a tablet one finger scrolls the page (the pen draws); a button switches fingers to drawing ---------- */
+(function(){
+  let m=null;try{m=localStorage.getItem('bvt-finger')}catch(_){}
+  if(m!=='pan'&&m!=='draw')m=(navigator.maxTouchPoints>0)?'pan':'draw';
+  S.finger=m;
+})();
+function setFinger(m){
+  S.finger=m;try{localStorage.setItem('bvt-finger',m)}catch(_){}
+  ['bHand','fHand'].forEach(function(id){const b=$(id);if(!b)return;
+    b.textContent=m==='draw'?'✋ Tay: Vẽ':'✋ Tay: Kéo trang';b.classList.toggle('draw',m==='draw');b.setAttribute('aria-pressed',m==='draw')});
+  if(typeof updHint==='function')updHint();
+}
+['bHand','fHand'].forEach(function(id){const b=$(id);if(b)b.addEventListener('click',function(){setFinger(S.finger==='draw'?'pan':'draw')})});
+setFinger(S.finger);
 
 /* ---------- sizing and start ---------- */
 let placed=false;
