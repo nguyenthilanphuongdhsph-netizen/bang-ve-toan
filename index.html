@@ -57,6 +57,9 @@ body.fs.notools .tools,body.fs.notools .opts{display:none!important}
 .fsbar{position:absolute;left:10px;bottom:10px;z-index:4;display:flex;flex-wrap:wrap;align-items:center;gap:4px;max-width:calc(100% - 40px);
   background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:5px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
 .fsbar .pnum{min-width:6.5em}
+html,body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+input,textarea,select,[contenteditable]{-webkit-user-select:text;user-select:text}
+.board,.board *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .ver{font-size:11px;color:var(--muted,#7a857f);margin-top:4px}
 .btn.upd{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:50;box-shadow:0 6px 20px rgba(0,0,0,.25);font-size:15px;padding:10px 16px}
 .btn.hand{white-space:nowrap}.btn.hand.draw{background:#fff4d6;border-color:#e0b44a}
@@ -2554,6 +2557,8 @@ cOv.addEventListener('pointermove',function(e){
       break;
     }
   }
+  /* plain handwriting needs nothing on the overlay; skipping it keeps the pen quick on a large iPad screen */
+  if(gs&&gs.k==='stroke'&&!gs.erase&&!gs.edge&&!anyIns()&&S.tool==='pen'&&S.pm===1)return;
   req();
 });
 function finish(){
@@ -2939,7 +2944,7 @@ function setFinger(m){
 setFinger(S.finger);
 
 /* ---------- version: shown in the sidebar; an installed copy (iPad home screen) checks for a newer one and offers to reload ---------- */
-const APP_VER='2026-10-21.2';
+const APP_VER='2026-10-21.3';
 (function(){
   const note=$('note');if(note){const s=document.createElement('div');s.className='ver';s.textContent='Phiên bản '+APP_VER;note.parentNode.insertBefore(s,note.nextSibling)}
   if(location.protocol!=='https:')return;
@@ -2961,6 +2966,20 @@ const APP_VER='2026-10-21.2';
   }
   setTimeout(check,1500);
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')check()});
+})();
+
+/* ---------- iPad: a long press or Pencil stroke must never start text selection, the magnifier or the copy menu ---------- */
+(function(){
+  const editable=function(t){return t&&t.closest&&t.closest('input,textarea,select,[contenteditable="true"]')};
+  ['touchstart','touchmove'].forEach(function(ev){
+    wrap.addEventListener(ev,function(e){if(e.target&&e.target.tagName==='CANVAS')e.preventDefault()},{passive:false});
+  });
+  document.addEventListener('selectstart',function(e){if(!editable(e.target))e.preventDefault()});
+  wrap.addEventListener('contextmenu',function(e){e.preventDefault()});
+  document.addEventListener('selectionchange',function(){
+    const sel=window.getSelection&&window.getSelection();
+    if(sel&&sel.rangeCount&&!editable(document.activeElement))try{sel.removeAllRanges()}catch(_){}
+  });
 })();
 
 /* ---------- sizing and start ---------- */
