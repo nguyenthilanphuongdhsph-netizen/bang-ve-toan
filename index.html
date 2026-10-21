@@ -57,6 +57,8 @@ body.fs.notools .tools,body.fs.notools .opts{display:none!important}
 .fsbar{position:absolute;left:10px;bottom:10px;z-index:4;display:flex;flex-wrap:wrap;align-items:center;gap:4px;max-width:calc(100% - 40px);
   background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:5px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
 .fsbar .pnum{min-width:6.5em}
+.ver{font-size:11px;color:var(--muted,#7a857f);margin-top:4px}
+.btn.upd{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:50;box-shadow:0 6px 20px rgba(0,0,0,.25);font-size:15px;padding:10px 16px}
 .btn.hand{white-space:nowrap}.btn.hand.draw{background:#fff4d6;border-color:#e0b44a}
 .zoom{display:flex;align-items:center;gap:4px;flex:none}
 .zoom .tb.sm,.fsbar #fZout,.fsbar #fZin{font:600 18px var(--font-ui);min-width:34px;padding:4px}
@@ -2935,6 +2937,31 @@ function setFinger(m){
 }
 ['bHand','fHand'].forEach(function(id){const b=$(id);if(b)b.addEventListener('click',function(){setFinger(S.finger==='draw'?'pan':'draw')})});
 setFinger(S.finger);
+
+/* ---------- version: shown in the sidebar; an installed copy (iPad home screen) checks for a newer one and offers to reload ---------- */
+const APP_VER='2026-10-21.2';
+(function(){
+  const note=$('note');if(note){const s=document.createElement('div');s.className='ver';s.textContent='Phiên bản '+APP_VER;note.parentNode.insertBefore(s,note.nextSibling)}
+  if(location.protocol!=='https:')return;
+  let shown=false;
+  function check(){
+    if(shown||!navigator.onLine)return;
+    fetch('version.json?nocache='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){
+      if(!j||!j.v||j.v===APP_VER)return;
+      shown=true;
+      const b=document.createElement('button');b.className='btn primary upd';b.textContent='Có bản mới — bấm để cập nhật';
+      b.addEventListener('click',function(){
+        flushPage().then(function(){
+          const go=function(){location.replace(location.pathname+'?v='+encodeURIComponent(j.v))};
+          if(navigator.serviceWorker&&navigator.serviceWorker.getRegistration)navigator.serviceWorker.getRegistration().then(function(rg){if(rg)rg.update().catch(function(){});go()}).catch(go);else go();
+        });
+      });
+      document.body.appendChild(b);
+    }).catch(function(){});
+  }
+  setTimeout(check,1500);
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')check()});
+})();
 
 /* ---------- sizing and start ---------- */
 let placed=false;
