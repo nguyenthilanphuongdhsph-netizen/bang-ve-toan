@@ -3876,7 +3876,7 @@ function setFinger(m){
 setFinger(S.finger);
 
 /* ---------- version: shown in the sidebar; an installed copy (iPad home screen) checks for a newer one and offers to reload ---------- */
-const APP_VER='2026-10-22.7';
+const APP_VER='2026-10-22.8';
 (function(){
   const note=$('note');if(note){const s=document.createElement('div');s.className='ver';s.textContent='Phiên bản '+APP_VER;note.parentNode.insertBefore(s,note.nextSibling)}
   if(location.protocol!=='https:')return;
@@ -4041,6 +4041,58 @@ CALCUI.setBoard({put:function(keys,res){
   if(P.length)commit({prims:P,c:S.color,w:1,nl:0});
 }});
 $('fCalc').addEventListener('click',function(){CALCUI.toggle()});
+
+/* ---------- fingers on a ruler (iPad): one finger drags it, two fingers turn it and make it bigger or smaller ---------- */
+var IG=null;
+const PARA_NICE=[0.25,0.3,0.4,0.5,0.6,0.75,1,1.25,1.5,2,2.5,3,4];
+function igBase(){
+  const I=S[IG.key],pts=Array.from(IG.ids.values()).map(function(q){return q.slice()});
+  IG.I0={x:I.x,y:I.y,a:I.a,k:I.k,cm:I.cm,len:I.len||(I.kind==='45'?8:9),r:I.r||(typeof proR==='function'?proR():200)};
+  IG.pw0=insPivotW(IG.key);IG.p0=pts;
+  if(pts.length>=2){IG.c0=[(pts[0][0]+pts[1][0])/2,(pts[0][1]+pts[1][1])/2];IG.d0=Math.hypot(pts[1][0]-pts[0][0],pts[1][1]-pts[0][1]);IG.a0=Math.atan2(pts[1][1]-pts[0][1],pts[1][0]-pts[0][0])}
+}
+function igMove(){
+  const key=IG.key,I=S[key],pts=Array.from(IG.ids.values());
+  if(pts.length<2||IG.p0.length<2){
+    const d=[pts[0][0]-IG.p0[0][0],pts[0][1]-IG.p0[0][1]];I.x=IG.I0.x+d[0];I.y=IG.I0.y+d[1];renderOverlay();return;
+  }
+  const c=[(pts[0][0]+pts[1][0])/2,(pts[0][1]+pts[1][1])/2],dd=Math.hypot(pts[1][0]-pts[0][0],pts[1][1]-pts[0][1]);
+  const th=Math.atan2(pts[1][1]-pts[0][1],pts[1][0]-pts[0][0])-IG.a0,s=Math.max(0.2,Math.min(5,dd/Math.max(10,IG.d0)));
+  /* size: each ruler in its own unit */
+  let sc=s;
+  if(key==='para'){let a=IG.I0.k/s;a=Math.max(0.2,Math.min(4,a));
+    const near=PARA_NICE.find(function(n){return Math.abs(a/n-1)<0.04});a=near||Math.round(a*100)/100;I.k=a;sc=IG.I0.k/a;
+    const sel=$('selPara');if(sel)sel.value=String(a)}
+  else if(key==='pro'){I.r=Math.max(100,Math.min(440,Math.round(IG.I0.r*s)));sc=I.r/IG.I0.r}
+  else if(key==='ruler'){I.cm=Math.max(4,Math.min(30,Math.round(IG.I0.cm*s)));I.cmSet=true;sc=I.cm/IG.I0.cm}
+  else if(key==='sq'){I.len=Math.max(5,Math.min(20,Math.round(IG.I0.len*s)));sc=I.len/IG.I0.len}
+  /* turn with a snap to every 15° */
+  let a=IG.I0.a+th;const st=Math.PI/12,n=Math.round(a/st);if(Math.abs(a-n*st)<0.04)a=n*st;
+  const cs=Math.cos(a-IG.I0.a),sn=Math.sin(a-IG.I0.a),v=[IG.pw0[0]-IG.c0[0],IG.pw0[1]-IG.c0[1]];
+  const pw=[c[0]+sc*(v[0]*cs-v[1]*sn),c[1]+sc*(v[0]*sn+v[1]*cs)];
+  insSetAngle(key,a,pw);renderOverlay();
+}
+cOv.addEventListener('pointerdown',function(e){
+  if(e.pointerType!=='touch')return;
+  const p=pt(e);
+  if(IG){if(IG.ids.size<2){IG.ids.set(e.pointerId,p);igBase()}e.preventDefault();e.stopImmediatePropagation();try{cOv.setPointerCapture(e.pointerId)}catch(_){}return}
+  if(typeof TOUCH!=='undefined'&&TOUCH.size)return;
+  const h=insHit(p,false);
+  if(!h||(h.k!=='move'&&h.k!=='rot'))return;
+  IG={key:h.key,ids:new Map([[e.pointerId,p]])};igBase();
+  e.preventDefault();e.stopImmediatePropagation();try{cOv.setPointerCapture(e.pointerId)}catch(_){}
+},true);
+cOv.addEventListener('pointermove',function(e){
+  if(!IG||!IG.ids.has(e.pointerId))return;e.stopImmediatePropagation();
+  IG.ids.set(e.pointerId,pt(e));igMove();
+},true);
+['pointerup','pointercancel'].forEach(function(t){cOv.addEventListener(t,function(e){
+  if(!IG||!IG.ids.has(e.pointerId))return;e.stopImmediatePropagation();
+  IG.ids.delete(e.pointerId);
+  if(IG.ids.size){igBase();return}
+  if(IG.key==='para'){const I=S.para,k=snapKP([I.x,I.y],18)||(BOARDS[S.board].axes&&Math.hypot(I.x-axesOrigin()[0],I.y-axesOrigin()[1])<=18?axesOrigin():null);if(k){I.x=k[0];I.y=k[1]}}
+  IG=null;renderOverlay();
+},true)});
 
 /* ---------- sizing and start ---------- */
 let placed=false;
