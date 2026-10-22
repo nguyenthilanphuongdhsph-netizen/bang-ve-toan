@@ -174,7 +174,7 @@ body.fs .ptabs{display:flex!important}
 .saved{color:var(--muted);font-size:12px;white-space:nowrap}
 .saved.warn{color:var(--danger)}
 .hist{display:flex;gap:4px;flex:none}
-.tools{display:flex;gap:2px;overflow-x:auto;padding:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;scrollbar-width:thin;flex:none}
+.tools{display:flex;flex-wrap:wrap;row-gap:2px;gap:2px;overflow-x:auto;padding:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;scrollbar-width:thin;flex:none}
 .sep{flex:none;width:1px;background:var(--line);margin:4px 3px}
 .pmenu{position:fixed;z-index:60;display:flex;flex-direction:column;min-width:200px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
 .pmenu button{text-align:left;border:0;background:transparent;padding:9px 12px;border-radius:7px;font:500 14px var(--font-ui);color:var(--ink);cursor:pointer}
@@ -3876,7 +3876,7 @@ function setFinger(m){
 setFinger(S.finger);
 
 /* ---------- version: shown in the sidebar; an installed copy (iPad home screen) checks for a newer one and offers to reload ---------- */
-const APP_VER='2026-10-22.8';
+const APP_VER='2026-10-22.9';
 (function(){
   const note=$('note');if(note){const s=document.createElement('div');s.className='ver';s.textContent='Phiên bản '+APP_VER;note.parentNode.insertBefore(s,note.nextSibling)}
   if(location.protocol!=='https:')return;
