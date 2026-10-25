@@ -58,7 +58,7 @@ body.fs.notools .tools,body.fs.notools .opts{display:none!important}
   background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:5px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
 .fsbar .pnum{min-width:6.5em}
 /* ---------- máy tính khoa học ---------- */
-.cz{position:fixed;z-index:70;width:330px;zoom:var(--z,1);background:#1f3a30;color:#fff;border-radius:16px;box-shadow:0 14px 34px rgba(0,0,0,.32);font-family:var(--font-ui);touch-action:none;user-select:none;-webkit-user-select:none;outline:none}
+.cz{position:fixed;z-index:70;width:330px;transform:scale(var(--z,1));transform-origin:0 0;background:#1f3a30;color:#fff;border-radius:16px;box-shadow:0 14px 34px rgba(0,0,0,.32);font-family:var(--font-ui);touch-action:none;user-select:none;-webkit-user-select:none;outline:none}
 .cz[hidden]{display:none}
 .cz-bar{display:flex;align-items:center;justify-content:space-between;padding:7px 8px 5px 12px;cursor:grab;font-size:13px}
 .cz-bar span{display:flex;gap:4px}
@@ -915,7 +915,7 @@ function buildShape(p0,p1){
     case 'rect':case 'square':pts=[[l,t],[r,t],[r,b],[l,b]];right=[0,1,2,3];break;
     case 'tri':pts=[[cx,t],[l,b],[r,b]];break;
     case 'eqtri':pts=[[cx,b-w*Math.sqrt(3)/2],[l,b],[r,b]];break;
-    case 'rtri':pts=[[l,t],[l,b],[r,b]];right=[0];break;
+    case 'rtri':pts=[[l,t],[l,b],[r,b]];right=[1];break;
     case 'rhombus':pts=[[cx,t],[r,cy],[cx,b],[l,cy]];break;
     case 'para':pts=[[l+w*0.25,t],[r,t],[r-w*0.25,b],[l,b]];break;
     case 'trap':pts=[[l+w*0.2,t],[r-w*0.2,t],[r,b],[l,b]];break;
@@ -1942,8 +1942,8 @@ function placeIns(key){
   const I=S[key];
   I.a=0;
   const vw=VW(),vh=VH(),x0=Math.max(0,S.sx);
-  if(key==='ruler'){I.x=x0+16;I.y=S.sy+vh-RW-16}
-  else if(key==='sq'){const d=sqDims();I.x=x0+24;I.y=S.sy+Math.max(d.B+20,vh-RW-40)}
+  if(key==='ruler'){I.x=S.sx+Math.max(16,(vw-rlen())/2);I.y=S.sy+vh*0.42}
+  else if(key==='sq'){const d=sqDims();I.x=S.sx+Math.max(24,vw*0.3);I.y=S.sy+Math.min(vh-RW-90,Math.max(d.B+20,vh*0.6))}
   else if(key==='para'){const L=paraGeom().L;I.x=S.sx+VW()*0.62;I.y=S.sy+Math.min(VH()-30,Math.max(VH()*0.62,L+30))}
   else if(key==='pro'){const R=proR();I.x=S.sx+Math.max(R+20,vw-R-30);I.y=S.sy+Math.min(vh-RW-60,Math.max(R+30,vh*0.5))}
 }
@@ -2321,7 +2321,7 @@ function polyTap(p){
 function polyDone(){
   if(!S.poly)return;
   const pts=S.poly.pts;S.poly=null;fab.hidden=true;
-  if(pts.length>=3)commit(buildPoly(pts));
+  if(pts.length>=3){commit(buildPoly(pts));shapeSel()}
   renderOverlay();
 }
 function polyCancel(){S.poly=null;fab.hidden=true;renderOverlay()}
@@ -2421,6 +2421,10 @@ function startTool(e,p,edge){
     gs={k:'glyph',pts:[[p[0],p[1]]]};emptyEl.hidden=true;req();return;
   }
   if(t==='hl'){const q=edge?snapEdge(p,edge):p;gs={k:'hl',pts:[q],edge:edge};emptyEl.hidden=true;req();return}
+  if(REG&&REG.shape){
+    if(S.tool===REG.shape&&regKnobHit(p)){regStart(p);req();return}
+    REG=null;
+  }
   if(t==='eraser'&&S.em===2){gs={k:'xerase',hit:new Set()};xEraseAt(p);emptyEl.hidden=true;req();return}
   if(t==='pen'||t==='eraser'){
     const erase=t==='eraser',q=edge&&!erase?snapEdge(p,edge):p;
@@ -2782,7 +2786,7 @@ function finish(){
     }else{const r=tangentFor(g.p);if(r.item&&!r.pickA){commit(r.item);TAN=null}}
     renderOverlay();
   }else if(g.k==='drag'){
-    if(Math.hypot(g.p1[0]-g.p0[0],g.p1[1]-g.p0[1])>4)commit(buildDrag(S.tool,g.p0,g.p1));
+    if(Math.hypot(g.p1[0]-g.p0[0],g.p1[1]-g.p0[1])>4){commit(buildDrag(S.tool,g.p0,g.p1));if(S.tool==='shape'||S.tool==='circle')shapeSel()}
   }else if(g.k==='c-turn'){
     const C=S.comp,r=Math.hypot(C.px-C.nx,C.py-C.ny);
     if(S.pencil&&Math.abs(g.sweep)>0.01){
@@ -3246,11 +3250,13 @@ var CALCUI=(function(){
     el.style.setProperty('--z',p&&p.z?p.z:1);
     if(p&&p.x!=null)place(p.x,p.y);else place(innerWidth-380,90);
   }
-  function place(x,y){
+  function place(x,y,full){
     const r=el.getBoundingClientRect(),w=r.width||340,h=r.height||600;
     x=Math.max(4-w*0.6,Math.min(innerWidth-w*0.4,x));y=Math.max(0,Math.min(innerHeight-40,y));
+    if(full){x=Math.max(4,Math.min(innerWidth-Math.min(w,innerWidth-8)-4,x));y=Math.max(4,Math.min(innerHeight-Math.min(h,innerHeight-8)-4,y))}
     el.style.left=x+'px';el.style.top=y+'px';
   }
+  window.addEventListener('resize',function(){if(el&&!el.hidden){const r=el.getBoundingClientRect();place(r.left,r.top,true)}});
   function savePos(){try{const r=el.getBoundingClientRect();localStorage.setItem('bvt-calc',JSON.stringify({x:r.left,y:r.top,z:+getComputedStyle(el).getPropertyValue('--z')||1}))}catch(_){}}
   function win(w){
     if(w==='close'){toggle(false);return}
@@ -3265,7 +3271,7 @@ var CALCUI=(function(){
     el.hidden=!on;
     const b=document.querySelector('.tools .tb[data-tool="calc"]');if(b)b.setAttribute('aria-pressed',String(on));
     const f=document.getElementById('fCalc');if(f)f.setAttribute('aria-pressed',String(on));
-    if(on){render();const r=el.getBoundingClientRect();place(r.left,r.top);el.focus({preventScroll:true})}
+    if(on){render();const r=el.getBoundingClientRect();place(r.left,r.top,true);el.focus({preventScroll:true})}
   }
 
   /* ---------- the strip of keys pressed ---------- */
@@ -3819,10 +3825,11 @@ function boxOf(list){
 }
 /* commit new items (optionally hiding the old ones) as one undo step and select them */
 function regPut(list,hideIdx,box){
+  const sh=REG&&REG.shape;
   const all=hideIdx&&hideIdx.length?[{hide:hideIdx.slice(),nl:0}].concat(list):list.slice();
   const n0=S.items.length+(all.length-list.length);
   commitMany(all);
-  REG={idx:list.map(function(_,k){return n0+k}),box:box||boxOf(list)};
+  REG={idx:list.map(function(_,k){return n0+k}),box:box||boxOf(list)};if(sh)REG.shape=sh;
   updRegFab();renderOverlay();
 }
 function regBoxXf(b,m){const a=xfPt(m,b.x0,b.y0),c=xfPt(m,b.x1,b.y1);return{x0:a[0],y0:a[1],x1:c[0],y1:c[1]}}
@@ -3910,8 +3917,14 @@ function updRegFab(){
   ['bRegDel','bRegCopyC','bRegCopy','bRegRot','bRegView','bRegOff'].forEach(function(i){$(i).disabled=!REG});
   $('bRegPaste').disabled=!RCLIP;
 }
+/* a plane figure just drawn (Hình phẳng, Đường tròn, Đa giác) shows a round knob: drag it to turn the figure */
+function shapeSel(){
+  const i=S.items.length-1,b=boxOf([S.items[i]]);
+  REG=b?{idx:[i],box:b,shape:S.tool}:null;renderOverlay();
+}
+function regKnobHit(p){if(!REG)return false;const rp=regRotPos(REG.box);return Math.hypot(p[0]-rp[0],p[1]-rp[1])<=18/S.z}
 function drawRegion(g){
-  if(S.tool!=='region')return;
+  if(!(S.tool==='region'||(REG&&REG.shape===S.tool)))return;
   g.save();g.setLineDash([6/S.z,5/S.z]);g.lineWidth=1.5/S.z;g.strokeStyle='#176a54';
   if(gs&&gs.k==='r-band'){
     const x=Math.min(gs.p0[0],gs.p1[0]),y=Math.min(gs.p0[1],gs.p1[1]);
@@ -3931,9 +3944,10 @@ function drawRegion(g){
       g.fillStyle='#176a54';g.font=(14/S.z)+'px '+FONT;g.textAlign='center';g.textBaseline='bottom';
       g.fillText(Math.round(gs.deg)+'°',gs.m.cx,Math.min.apply(null,rotated.map(function(c){return c[1]}))-8/S.z);
     }else{
-      g.strokeRect(b.x0,b.y0,b.x1-b.x0,b.y1-b.y0);g.setLineDash([]);
+      if(REG.shape)g.strokeStyle='rgba(23,106,84,.45)';
+      g.strokeRect(b.x0,b.y0,b.x1-b.x0,b.y1-b.y0);g.setLineDash([]);g.strokeStyle='#176a54';
       const hs=6/S.z;
-      [[b.x0,b.y0],[b.x1,b.y0],[b.x1,b.y1],[b.x0,b.y1]].forEach(function(c){g.fillStyle='#fff';g.fillRect(c[0]-hs,c[1]-hs,2*hs,2*hs);g.strokeRect(c[0]-hs,c[1]-hs,2*hs,2*hs)});
+      if(!REG.shape)[[b.x0,b.y0],[b.x1,b.y0],[b.x1,b.y1],[b.x0,b.y1]].forEach(function(c){g.fillStyle='#fff';g.fillRect(c[0]-hs,c[1]-hs,2*hs,2*hs);g.strokeRect(c[0]-hs,c[1]-hs,2*hs,2*hs)});
       if(!(gs&&(gs.k==='r-move'||gs.k==='r-scale'))){
         const rp=regRotPos(b),cx=(b.x0+b.x1)/2;
         g.beginPath();g.moveTo(cx,b.y0);g.lineTo(rp[0],rp[1]);g.stroke();
@@ -3993,7 +4007,7 @@ function setFinger(m){
 setFinger(S.finger);
 
 /* ---------- version: shown in the sidebar; an installed copy (iPad home screen) checks for a newer one and offers to reload ---------- */
-const APP_VER='2026-10-23.3';
+const APP_VER='2026-10-25.1';
 (function(){
   const note=$('note');if(note){const s=document.createElement('div');s.className='ver';s.textContent='Phiên bản '+APP_VER;note.parentNode.insertBefore(s,note.nextSibling)}
   if(location.protocol!=='https:')return;
