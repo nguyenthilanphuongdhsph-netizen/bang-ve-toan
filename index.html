@@ -54,6 +54,21 @@ body.fs{padding-left:max(6px,env(safe-area-inset-left,0px));padding-right:max(6p
 body.fs #app{padding-block:6px;gap:6px}
 body.fs .top,body.fs .side,body.fs .pbar{display:none!important}
 body.fs.notools .tools,body.fs.notools .opts{display:none!important}
+/* full screen: tools become a slim icon rail on the left; colour/options row and page tabs share one row */
+body.fs #app{display:grid;grid-template-columns:minmax(0,auto) minmax(110px,1fr);grid-template-rows:auto minmax(0,1fr);column-gap:8px;row-gap:4px;padding-left:var(--railw,0px)}
+body.fs.notools #app{padding-left:0;grid-template-columns:minmax(110px,1fr)}
+body.fs .opts{grid-column:1;grid-row:1;padding:0;flex-wrap:wrap;row-gap:4px;column-gap:12px;overflow:visible}
+body.fs .ptabs{grid-row:1;align-self:end}
+body.fs.notools .ptabs{grid-column:1}
+body.fs .main{grid-column:1/-1;grid-row:2}
+body.fs .tools{position:fixed;left:max(6px,env(safe-area-inset-left,0px));top:6px;bottom:6px;z-index:6;display:grid;grid-auto-flow:column;grid-template-rows:repeat(auto-fill,38px);grid-auto-columns:38px;gap:2px;padding:3px;align-content:start;overflow:visible}
+body.fs .tools .sep{display:none}
+body.fs .opts input[type=range]{width:70px}
+body.fs #selBoard{max-width:130px}
+body.fs .opts .og{gap:6px}
+body.fs .tools .tb{min-width:0;width:38px;height:38px;padding:0;justify-content:center}
+body.fs .tools .tb span{display:none}
+body.fs .tools .tb svg{width:22px;height:22px}
 .fsbar{position:absolute;left:10px;bottom:10px;z-index:4;display:flex;flex-wrap:wrap;align-items:center;gap:4px;max-width:calc(100% - 40px);
   background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:5px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
 .fsbar .pnum{min-width:6.5em}
@@ -310,7 +325,6 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
     </div>
     <div class="og seg" data-for="pen" id="seg" role="group" aria-label="Kiểu bút">
       <button type="button" data-pm="1" aria-pressed="true">Viết tay</button>
-      <button type="button" data-pm="2" aria-pressed="false">Ghi tên điểm</button>
       <button type="button" data-pm="3" aria-pressed="false">Vẽ thẳng</button>
     </div>
     <div class="og seg" data-for="tangent" id="segT" role="group" aria-label="Kiểu tiếp tuyến">
@@ -1859,6 +1873,7 @@ const IC={
   eraser:'<path d="M4 15l8-9 7 7-5 6H8z"/><path d="M9 10l7 7"/>',
   text:'<path d="M5 6h14M12 6v13M9 19h6"/>',
   point:'<circle cx="12" cy="12" r="2.6" fill="currentColor"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3"/>',
+  ray:'<path d="M5 19L21 3"/><circle cx="5" cy="19" r="1.8" fill="currentColor"/>',
   line:'<path d="M5 19L19 5"/><circle cx="5" cy="19" r="1.8" fill="currentColor"/><circle cx="19" cy="5" r="1.8" fill="currentColor"/>',
   polygon:'<path d="M12 4l8 6-3 9H7l-3-9z"/>',
   shape:'<path d="M3 19V9h8v10z"/><path d="M13 19l4-9 4 9z"/>',
@@ -1886,7 +1901,7 @@ const IC={
   del:'<path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/>'
 };
 function ic(n){return '<svg viewBox="0 0 24 24" aria-hidden="true">'+IC[n]+'</svg>'}
-const TOOLS=[['pen','Bút'],['hl','Bút tô'],['laser','Bút laze'],['eraser','Tẩy'],['text','Chữ'],['region','Chọn vùng'],['snip','Cắt hình'],'|',['point','Điểm'],['line','Đoạn thẳng'],['polygon','Đa giác'],
+const TOOLS=[['pen','Bút'],['hl','Bút tô'],['laser','Bút laze'],['eraser','Tẩy'],['text','Chữ'],['region','Chọn vùng'],['snip','Cắt hình'],'|',['point','Điểm'],['line','Đoạn thẳng'],['ray','Tia'],['polygon','Đa giác'],
   ['shape','Hình phẳng'],['circle','Đường tròn'],['tangent','Tiếp tuyến'],['graph','Đồ thị'],['solid','Hình khối'],'|',['ruler','Thước'],['sq','Ê ke'],['pro','Đo góc'],['para','Parabol'],['comp','Compa'],['calc','Máy tính'],'|',['insert','Chèn ▾']];
 const HINT={
   pen:'Viết, vẽ tự do; nét đậm nhạt theo lực bút. Đặt bút sát mép thước hoặc ê ke để kẻ thẳng.',
@@ -1934,6 +1949,7 @@ function setTool(id){
   S.tool=id;gs=null;TAN=null;
   Object.keys(toolBtns).forEach(function(k){if(k!=='image'&&k!=='pdf'&&k!=='calc'&&(!S[k]||S[k].on===undefined))toolBtns[k].setAttribute('aria-pressed',String(k===id||(k==='insert'&&id==='select')))});
   if(id!=='select')selImg=null;
+  if(typeof updRayBtn==='function')updRayBtn();
   if(id!=='region'){REG=null;if(typeof updRegFab==='function')try{updRegFab()}catch(_){}}
   updSwatches();
   updOpts();updHint();updCursor();renderOverlay();
@@ -1955,7 +1971,7 @@ function toggleIns(key,b){
   }
   updOpts();updHist();updHint();renderOverlay();
 }
-const TIPS={pen:'Bút viết, vẽ tự do',hl:'Bút tô dạ quang',laser:'Bút laze trình chiếu: nét sáng tự mờ',eraser:'Tẩy',text:'Gõ chữ',region:'Chọn vùng để dời, phóng to, nhân đôi, xóa',
+const TIPS={ray:'Tia: kéo từ gốc tia theo hướng cần vẽ',pen:'Bút viết, vẽ tự do',hl:'Bút tô dạ quang',laser:'Bút laze trình chiếu: nét sáng tự mờ',eraser:'Tẩy',text:'Gõ chữ',region:'Chọn vùng để dời, phóng to, nhân đôi, xóa',
   point:'Điểm',line:'Đoạn thẳng, tia, đường thẳng',polygon:'Đa giác',shape:'Hình phẳng có sẵn',circle:'Đường tròn, elip',tangent:'Tiếp tuyến của đường tròn',graph:'Đồ thị hàm số',solid:'Hình không gian',
   ruler:'Thước thẳng',sq:'Ê ke',pro:'Thước đo góc',para:'Thước parabol',comp:'Compa',calc:'Máy tính khoa học',insert:'Chèn ảnh, chèn PDF, sửa ảnh'};
 function openInsertMenu(btn){
@@ -1977,14 +1993,14 @@ TOOLS.forEach(function(t){
   const isIns=['ruler','sq','pro','para','comp'].indexOf(t[0])>=0;
   if(t[0]==='image'||t[0]==='pdf')b.removeAttribute('aria-pressed');
   b.dataset.tool=t[0];
-  b.addEventListener('click',function(){if(t[0]==='calc'){CALCUI.toggle();return}if(t[0]==='insert')openInsertMenu(b);else if(t[0]==='image')$('fImg').click();else if(t[0]==='pdf')$('fPdf').click();else if(isIns)toggleIns(t[0],b);else setTool(t[0])});
+  b.addEventListener('click',function(){if(t[0]==='calc'){CALCUI.toggle();return}if(t[0]==='ray'||t[0]==='line'){const v=t[0]==='ray'?'ray':(S.line==='ray'?'segment':S.line);S.line=v;$('selLine').value=v;setTool('line');return}if(t[0]==='insert')openInsertMenu(b);else if(t[0]==='image')$('fImg').click();else if(t[0]==='pdf')$('fPdf').click();else if(isIns)toggleIns(t[0],b);else setTool(t[0])});
   toolsEl.appendChild(b);toolBtns[t[0]]=b;
 });
 bUndo.innerHTML=ic('undo');bRedo.innerHTML=ic('redo');$('bClear').innerHTML=ic('trash');
 $('bSide').innerHTML=ic('side');$('bPrev').innerHTML=ic('prev');$('bNext').innerHTML=ic('next');
 bUndo.addEventListener('click',undo);bRedo.addEventListener('click',redo);$('bClear').addEventListener('click',clearBoard);
 
-const SW=[['ink','Đen'],['red','Đỏ'],['blue','Xanh dương'],['green','Xanh lá'],['amber','Cam'],['purple','Tím'],['pink','Hồng'],['brown','Nâu'],['teal','Xanh ngọc'],['gray','Xám']],swEl=$('swatches');
+const SW=[['ink','Đen'],['red','Đỏ'],['blue','Xanh dương'],['green','Xanh lá'],['amber','Cam'],['purple','Tím'],['pink','Hồng']],swEl=$('swatches');
 const HLSW=[['hlY','Tô vàng'],['hlG','Tô xanh lá'],['hlP','Tô hồng'],['hlB','Tô xanh dương'],['hlO','Tô cam'],['hlV','Tô tím'],['hlR','Tô đỏ'],['hlT','Tô xanh ngọc'],['hlL','Tô xanh nõn chuối'],['hlS','Tô xám']],hlEl=$('hlSw');
 SW.forEach(function(s){
   const b=document.createElement('button');
@@ -1993,7 +2009,7 @@ SW.forEach(function(s){
   swEl.appendChild(b);
 });
 /* Màu khác: the system colour picker, kept as an exact #rrggbb */
-const swc=document.createElement('label');swc.className='swc';swc.title='Màu khác';
+const swc=document.createElement('label');swc.className='swc';swc.title='Màu khác';swc.style.display='none';
 swc.innerHTML='<input type="color" id="pickCol" value="#0b6e4f" aria-label="Chọn màu khác">';swEl.appendChild(swc);
 $('pickCol').addEventListener('input',function(e){S.color=e.target.value;updSwatches();renderOverlay()});
 HLSW.forEach(function(s){
@@ -2028,7 +2044,8 @@ SYMS.forEach(function(ch){
   });
   symEl.appendChild(b);
 });
-$('selLine').addEventListener('change',function(e){S.line=e.target.value});
+$('selLine').addEventListener('change',function(e){S.line=e.target.value;updRayBtn()});
+function updRayBtn(){if(!toolBtns.ray)return;toolBtns.ray.setAttribute('aria-pressed',String(S.tool==='line'&&S.line==='ray'));toolBtns.line.setAttribute('aria-pressed',String(S.tool==='line'&&S.line!=='ray'))}
 $('selShape').addEventListener('change',function(e){S.shape=e.target.value});
 $('selCirc').addEventListener('change',function(e){S.circ=e.target.value});
 $('selSolid').addEventListener('change',function(e){S.solid=e.target.value});
@@ -2465,8 +2482,15 @@ document.querySelectorAll('[data-sz]').forEach(function(b){
 /* ---------- toàn màn hình ---------- */
 const fsbar=$('fsbar');
 function fsEl(){return document.fullscreenElement||document.webkitFullscreenElement}
+/* width of the left tool rail in full screen, so the board starts right after it */
+function fsRail(){
+  const t=$('tools'),on=document.body.classList.contains('fs')&&!document.body.classList.contains('notools');
+  document.documentElement.style.setProperty('--railw',on?Math.ceil(t.getBoundingClientRect().width+6)+'px':'0px');
+}
+window.addEventListener('resize',function(){requestAnimationFrame(fsRail)});
 function setFs(on){
   document.body.classList.toggle('fs',on);fsbar.hidden=!on;$('bFull').setAttribute('aria-pressed',String(on));
+  fsRail();setTimeout(fsRail,300);
   const el=document.documentElement;
   if(on){
     const rq=el.requestFullscreen||el.webkitRequestFullscreen;
@@ -2489,7 +2513,7 @@ $('fPrev').addEventListener('click',function(){step(-1)});$('fNext').addEventLis
 $('fNewP').addEventListener('click',function(){$('bNewP').click()});
 $('fTools').addEventListener('click',function(){
   const off=document.body.classList.toggle('notools');
-  $('fTools').textContent=off?'Hiện công cụ':'Ẩn công cụ';
+  fsRail();$('fTools').textContent=off?'Hiện công cụ':'Ẩn công cụ';
 });
 
 /* ---------- tẩy cả nét and xóa nét vừa ghi ---------- */
@@ -4007,7 +4031,7 @@ function setFinger(m){
 setFinger(S.finger);
 
 /* ---------- version: shown in the sidebar; an installed copy (iPad home screen) checks for a newer one and offers to reload ---------- */
-const APP_VER='2026-10-25.1';
+const APP_VER='2026-10-30.3';
 (function(){
   const note=$('note');if(note){const s=document.createElement('div');s.className='ver';s.textContent='Phiên bản '+APP_VER;note.parentNode.insertBefore(s,note.nextSibling)}
   if(location.protocol!=='https:')return;
